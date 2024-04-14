@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <exception>
 #include <cassert>
 #include <SL/Lua.hpp>
 #include <SDL3/SDL.h>
@@ -8,39 +9,87 @@
 #define SOURCE_DIR "."
 #endif
 
-int main()
+using handle_t = void*;
+
+struct Window
 {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    Window(const std::string& config_file = "")
     {
-        std::cout << "Error initializing video\n";
-        return 1;
+        if (SDL_WasInit(SDL_INIT_VIDEO)) std::terminate();
+
+        // Initialize SDL
+        if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        {
+            std::cout << "Error initializing video\n";
+            std::terminate();
+        }
+
+        // Read in the window information from the file
+        const auto [title, width, height] = (config_file.length() ? [](const std::string& file)
+        {
+            SL::Runtime runtime(SOURCE_DIR "/" + file);
+            const auto res = runtime.getGlobal<SL::Table>("WindowOptions");
+            assert(res);
+
+            const auto& options = *res;
+            const auto string = options.get<SL::String>("title");
+            const auto w = options.get<SL::Table>("size").get<SL::Number>("w");
+            const auto h = options.get<SL::Table>("size").get<SL::Number>("h");
+            return std::tuple(string, w, h);
+        }(config_file) : std::tuple("window", 1280, 720) );
+
+        // Create the window
+        handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, 0));
+        if (!handle)
+        {
+            std::cout << "Error initializing window\n";
+            std::terminate();
+        }
+
+        _close = false;
     }
 
-    const auto [title, width, height] = []()
+    void close()
     {
-        SL::Runtime runtime(SOURCE_DIR "/window.lua");
-        const auto res = runtime.getGlobal<SL::Table>("WindowOptions");
-        assert(res);
+        _close = true;
+    }
 
-        const auto& options = *res;
-        const auto string = options.get<SL::String>("title");
-        const auto w = options.get<SL::Table>("size").get<SL::Number>("w");
-        const auto h = options.get<SL::Table>("size").get<SL::Number>("h");
-        return std::tuple(string, w, h);
-    }();
+    bool shouldClose() const { return _close; }
 
-    auto* window = SDL_CreateWindow(title.c_str(), width, height, 0);
+    ~Window()
+    {
+        if (handle)
+        {
+            SDL_DestroyWindow(static_cast<SDL_Window*>(handle));
+            SDL_Quit();
+            handle = nullptr;
+        }
+    }
 
-    bool close = false;
-    while (!close)
+    void update()
+    {
+        SDL_UpdateWindowSurface(static_cast<SDL_Window*>(handle));
+    }
+
+private:
+    bool _close;
+    handle_t handle;
+};
+
+int main()
+{
+    Window window("window.lua");
+
+    // Main loop
+    while (!window.shouldClose())
     {
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
-                close = true;
+                window.close();
         }
 
-        SDL_UpdateWindowSurface(window);
+        window.update();
     }
 }
