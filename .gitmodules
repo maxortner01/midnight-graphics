@@ -1,3 +1,6 @@
 [submodule "extern/SDL"]
 	path = extern/SDL
 	url = https://github.com/libsdl-org/SDL
+[submodule "extern/simple-lua"]
+	path = extern/simple-lua
+	url = https://github.com/maxortner01/simple-lua
