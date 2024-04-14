@@ -11,6 +11,46 @@
 
 using handle_t = void*;
 
+template<typename T>
+struct Singleton
+{
+    friend T;
+
+    inline static std::shared_ptr<T> get()
+    {
+        if (!_instance) _instance = 
+            std::shared_ptr<T>(
+                new T(),
+                [](void* ptr) { delete reinterpret_cast<T*>(ptr); }
+            );
+        return _instance;
+    }
+
+    inline static void destroy()
+    {
+        _instance.reset();
+    }
+
+private:
+    inline static std::shared_ptr<T> _instance;
+};
+
+struct Instance : Singleton<Instance>
+{
+    friend class Singleton<Instance>;
+
+protected:
+    Instance()
+    {
+        std::cout << "Create\n";
+    }
+
+    ~Instance()
+    {
+        std::cout << "Destroy\n";
+    }
+};
+
 struct Window
 {
     Window(const std::string& config_file = "")
@@ -31,10 +71,9 @@ struct Window
             const auto res = runtime.getGlobal<SL::Table>("WindowOptions");
             assert(res);
 
-            const auto& options = *res;
-            const auto string = options.get<SL::String>("title");
-            const auto w = options.get<SL::Table>("size").get<SL::Number>("w");
-            const auto h = options.get<SL::Table>("size").get<SL::Number>("h");
+            const auto string = res->get<SL::String>("title");
+            const auto w = res->get<SL::Table>("size").get<SL::Number>("w");
+            const auto h = res->get<SL::Table>("size").get<SL::Number>("h");
             return std::tuple(string, w, h);
         }(config_file) : std::tuple("window", 1280, 720) );
 
@@ -45,6 +84,8 @@ struct Window
             std::cout << "Error initializing window\n";
             std::terminate();
         }
+
+        auto instance = Instance::get();
 
         _close = false;
     }
@@ -60,6 +101,7 @@ struct Window
     {
         if (handle)
         {
+            Instance::destroy();
             SDL_DestroyWindow(static_cast<SDL_Window*>(handle));
             SDL_Quit();
             handle = nullptr;
