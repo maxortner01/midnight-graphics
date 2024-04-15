@@ -3,10 +3,12 @@
 #include <exception>
 #include <cassert>
 #include <vector>
+#include <algorithm>
 
 #include <vulkan/vulkan.h>
 #include <SL/Lua.hpp>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #ifndef SOURCE_DIR
 #define SOURCE_DIR "."
@@ -42,6 +44,122 @@ struct Instance : Singleton<Instance>
 {
     friend class Singleton<Instance>;
 
+    handle_t createSurface(handle_t window) const
+    {
+        if (!handle) std::terminate();
+
+        VkSurfaceKHR surface;
+        const auto err = SDL_Vulkan_CreateSurface(
+            static_cast<SDL_Window*>(window),
+            static_cast<VkInstance>(handle),
+            nullptr,
+            &surface
+        );
+
+        if (err == SDL_FALSE)
+        {
+            std::cout << "Error creating surface: " << SDL_GetError() << std::endl;
+            std::terminate();
+        }
+
+        return static_cast<handle_t>(surface);
+    }
+
+    void destroySurface(handle_t surface) const
+    {
+        if (!handle) std::terminate();
+        vkDestroySurfaceKHR(static_cast<VkInstance>(handle), static_cast<VkSurfaceKHR>(surface), nullptr);
+    }
+
+    handle_t createSwapchain(handle_t window, handle_t surface) const
+    {
+        if (!physical_device) std::terminate();
+        auto* win = static_cast<SDL_Window*>(window);
+        const auto  p_device   = static_cast<VkPhysicalDevice>(physical_device);
+        const auto  vk_surface = static_cast<VkSurfaceKHR>(surface); 
+
+        VkSurfaceCapabilitiesKHR capabilities;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_device, vk_surface, &capabilities);
+
+        const auto surfaceFormats = [p_device, vk_surface]()
+        {
+            uint32_t count;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(p_device, vk_surface, &count, nullptr);
+            std::vector<VkSurfaceFormatKHR> formats(count);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(p_device, vk_surface, &count, formats.data());
+            return formats;
+        }();
+
+        if (surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM)
+        {
+            std::cout << "surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM" << std::endl;
+            std::terminate();
+        }
+
+        const auto [w, h] = [win, c = capabilities]()
+        {
+            int w, h;
+            SDL_GetWindowSize(win, &w, &h);
+            if (w < 0 || h < 0) std::terminate();
+            return std::tuple(
+                std::clamp(static_cast<uint32_t>(w), c.minImageExtent.width,  c.maxImageExtent.width ), 
+                std::clamp(static_cast<uint32_t>(h), c.minImageExtent.height, c.maxImageExtent.height)
+            );
+        }();
+
+        uint32_t image_count = capabilities.minImageCount + 1;
+        if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount)
+            image_count = capabilities.maxImageCount;
+
+        VkSwapchainCreateInfoKHR create_info = {
+            .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .oldSwapchain = nullptr,
+            .minImageCount = capabilities.minImageCount,
+            .surface = vk_surface,
+            .imageExtent = VkExtent2D{ .width = w, .height = h },
+            .imageFormat = surfaceFormats[0].format,
+            .imageColorSpace = surfaceFormats[0].colorSpace,
+            .imageArrayLayers = 1,
+            .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .queueFamilyIndexCount = 1,
+            .pQueueFamilyIndices = &graphics_queue_index,
+            .preTransform = capabilities.currentTransform,
+            .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+            .clipped = VK_TRUE
+        };
+
+        VkSwapchainKHR swapchain;
+        const auto err = vkCreateSwapchainKHR(static_cast<VkDevice>(device), &create_info, nullptr, &swapchain);
+        if (err != VK_SUCCESS)
+        {
+            std::cout << "Error creating swapchain (" << err << ")" << std::endl;
+            std::terminate();
+        }
+
+        return static_cast<handle_t>(swapchain);
+    }
+
+    std::vector<handle_t> getSwapchainImages(handle_t swapchain) const
+    {
+        assert(sizeof(handle_t) == sizeof(VkImage));
+        const auto vk_device = static_cast<VkDevice>(device);
+        const auto vk_swap   = static_cast<VkSwapchainKHR>(swapchain);
+        uint32_t count;
+        vkGetSwapchainImagesKHR(vk_device, vk_swap, &count, nullptr);
+        std::vector<handle_t> images(count); 
+        vkGetSwapchainImagesKHR(vk_device, vk_swap, &count, reinterpret_cast<VkImage*>(images.data()));
+        return images;
+    }
+
+    void destroySwapchain(handle_t swapchain) const
+    {
+        if (!device) std::terminate();
+        vkDestroySwapchainKHR(static_cast<VkDevice>(device), static_cast<VkSwapchainKHR>(swapchain), nullptr);
+    }
+
 private:
     Instance() : handle(nullptr)
     {
@@ -64,8 +182,8 @@ private:
             .ppEnabledLayerNames = nullptr
         };
 
-        std::vector<const char*> enabled_extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME };
-        create_info.enabledExtensionCount   = enabled_extensions.size();
+        std::vector<const char*> enabled_extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, "VK_EXT_metal_surface" };
+        create_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions.size());
         create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
         VkInstance instance;
@@ -127,6 +245,7 @@ private:
         if (physical_devices.size()) std::cout << "\n";
 
         const auto p_device = physical_devices[0];
+        physical_device = static_cast<handle_t>(p_device);
 
         const auto graphics_index = [](const VkPhysicalDevice& device)
         {
@@ -163,7 +282,7 @@ private:
         const auto extensions = [](const VkPhysicalDevice& p_device)
         {
             std::vector<const char*> enabledExtensions;
-            std::vector<const char*> requiredExtensions = { VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME };
+            std::vector<const char*> requiredExtensions = { VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
             uint32_t count;
             vkEnumerateDeviceExtensionProperties(p_device, nullptr, &count, nullptr);
@@ -187,9 +306,9 @@ private:
                 }
 
                 enabledExtensions.push_back(required);
-
-                return enabledExtensions;
             }
+
+            return enabledExtensions;
         }(p_device);
 
         VkDeviceCreateInfo create_info = {
@@ -214,6 +333,7 @@ private:
 
         std::cout << "Successfully created device\n";
         device = static_cast<handle_t>(_device);
+        graphics_queue_index = graphics_index;
     }
 
     ~Instance()
@@ -226,7 +346,8 @@ private:
         std::cout << "Destroy\n";
     }
 
-    handle_t handle, device;
+    handle_t handle, physical_device, device;
+    uint32_t graphics_queue_index;
 };
 
 struct Window
@@ -256,7 +377,7 @@ struct Window
         }(config_file) : std::tuple("window", 1280, 720) );
 
         // Create the window
-        handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, 0));
+        handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN));
         if (!handle)
         {
             std::cout << "Error initializing window\n";
@@ -264,6 +385,10 @@ struct Window
         }
 
         auto instance = Instance::get();
+        surface   = instance->createSurface(handle);
+        swapchain = instance->createSwapchain(handle, surface);
+
+        const auto images = instance->getSwapchainImages(swapchain);
 
         _close = false;
     }
@@ -279,6 +404,8 @@ struct Window
     {
         if (handle)
         {
+            Instance::get()->destroySwapchain(swapchain);
+            Instance::get()->destroySurface(surface);
             Instance::destroy();
             SDL_DestroyWindow(static_cast<SDL_Window*>(handle));
             SDL_Quit();
@@ -293,7 +420,7 @@ struct Window
 
 private:
     bool _close;
-    handle_t handle;
+    handle_t handle, surface, swapchain;
 };
 
 int main()
