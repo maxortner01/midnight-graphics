@@ -1,9 +1,11 @@
 #include <iostream>
 
+#include <memory>
 #include <exception>
 #include <cassert>
 #include <vector>
 #include <algorithm>
+#include <span>
 
 #include <vulkan/vulkan.h>
 #include <SL/Lua.hpp>
@@ -71,7 +73,7 @@ struct Instance : Singleton<Instance>
         vkDestroySurfaceKHR(static_cast<VkInstance>(handle), static_cast<VkSurfaceKHR>(surface), nullptr);
     }
 
-    handle_t createSwapchain(handle_t window, handle_t surface) const
+    std::pair<handle_t, std::vector<handle_t>> createSwapchain(handle_t window, handle_t surface) const
     {
         if (!physical_device) std::terminate();
         auto* win = static_cast<SDL_Window*>(window);
@@ -139,7 +141,44 @@ struct Instance : Singleton<Instance>
             std::terminate();
         }
 
-        return static_cast<handle_t>(swapchain);
+        std::pair<handle_t, std::vector<handle_t>> pair;
+        pair.first = static_cast<handle_t>(swapchain);
+
+        const auto images = getSwapchainImages(pair.first);
+        
+        pair.second.reserve(images.size());
+        for (uint32_t i = 0; i < images.size(); i++)
+        {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .pNext = nullptr,
+                .image = static_cast<VkImage>(images[i]),
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format   = surfaceFormats[0].format,
+                .components = {
+                    .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .a = VK_COMPONENT_SWIZZLE_IDENTITY
+                },
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                }
+            };
+
+            VkImageView image_view;
+            const auto err = vkCreateImageView(static_cast<VkDevice>(device), &create_info, nullptr, &image_view);
+            if (err != VK_SUCCESS)
+                std::terminate();
+
+            pair.second.push_back(static_cast<handle_t>(image_view));
+        }
+
+        return pair;
     }
 
     std::vector<handle_t> getSwapchainImages(handle_t swapchain) const
@@ -158,6 +197,12 @@ struct Instance : Singleton<Instance>
     {
         if (!device) std::terminate();
         vkDestroySwapchainKHR(static_cast<VkDevice>(device), static_cast<VkSwapchainKHR>(swapchain), nullptr);
+    }
+
+    void destroyImageView(handle_t image_view) const
+    {
+        if (!device) std::terminate();
+        vkDestroyImageView(static_cast<VkDevice>(device), static_cast<VkImageView>(image_view), nullptr);
     }
 
 private:
@@ -182,9 +227,46 @@ private:
             .ppEnabledLayerNames = nullptr
         };
 
-        std::vector<const char*> enabled_extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, "VK_EXT_metal_surface" };
+        std::vector<const char*> enabled_extensions = { 
+            VK_KHR_SURFACE_EXTENSION_NAME, 
+            VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, 
+            "VK_EXT_metal_surface", 
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME, 
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+            VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME
+        };
+
         create_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions.size());
         create_info.ppEnabledExtensionNames = enabled_extensions.data();
+
+        const auto validation_layers = []()
+        {
+            std::vector<const char*> enabledLayers;
+            std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
+
+            uint32_t count;
+            vkEnumerateInstanceLayerProperties(&count, nullptr);
+            std::vector<VkLayerProperties> props(count);
+            vkEnumerateInstanceLayerProperties(&count, props.data());
+
+            for (const auto& layer : requiredLayers)
+            {
+                bool found = false;
+                for (const auto& prop : props)
+                    if (!strcmp(prop.layerName, layer))
+                    {
+                        found = true;
+                        break;
+                    }
+                
+                if (found) enabledLayers.push_back(layer);
+                else std::cout << "Layer " << layer << " not supported\n";
+            }
+
+            return enabledLayers;
+        }();
+        create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+        create_info.ppEnabledLayerNames = validation_layers.data();
 
         VkInstance instance;
         const auto err = vkCreateInstance(&create_info, nullptr, &instance);
@@ -282,7 +364,18 @@ private:
         const auto extensions = [](const VkPhysicalDevice& p_device)
         {
             std::vector<const char*> enabledExtensions;
-            std::vector<const char*> requiredExtensions = { VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+            std::vector<const char*> requiredExtensions = { 
+                VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, 
+                VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 
+                VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, 
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+                VK_KHR_DEVICE_GROUP_EXTENSION_NAME,
+                VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+                VK_KHR_MULTIVIEW_EXTENSION_NAME,
+                VK_KHR_MAINTENANCE2_EXTENSION_NAME,
+                "VK_KHR_portability_subset"
+            };
 
             uint32_t count;
             vkEnumerateDeviceExtensionProperties(p_device, nullptr, &count, nullptr);
@@ -386,9 +479,7 @@ struct Window
 
         auto instance = Instance::get();
         surface   = instance->createSurface(handle);
-        swapchain = instance->createSwapchain(handle, surface);
-
-        const auto images = instance->getSwapchainImages(swapchain);
+        std::tie(swapchain, image_views) = instance->createSwapchain(handle, surface);
 
         _close = false;
     }
@@ -404,8 +495,14 @@ struct Window
     {
         if (handle)
         {
-            Instance::get()->destroySwapchain(swapchain);
-            Instance::get()->destroySurface(surface);
+            {
+                auto instance = Instance::get();
+                for (const auto& iv : image_views)
+                    instance->destroyImageView(iv);   
+
+                instance->destroySwapchain(swapchain);
+                instance->destroySurface(surface);
+            }
             Instance::destroy();
             SDL_DestroyWindow(static_cast<SDL_Window*>(handle));
             SDL_Quit();
@@ -421,6 +518,7 @@ struct Window
 private:
     bool _close;
     handle_t handle, surface, swapchain;
+    std::vector<handle_t> image_views;
 };
 
 int main()
