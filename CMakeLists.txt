@@ -11,7 +11,12 @@ set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
 add_subdirectory(extern/SDL)
 add_subdirectory(extern/simple-lua)
 
-add_executable(main main.cpp)
+add_executable(main 
+    main.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
+)
 target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan simple-lua)
+target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/midnight)
 
 target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")
