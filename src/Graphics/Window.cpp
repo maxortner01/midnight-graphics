@@ -59,6 +59,22 @@ Window::Window(const std::string& config_file)
     _close = false;
 }
 
+Window::Window(Window&& window) :
+    _close(window._close),
+    handle(window.handle),
+    surface(window.surface),
+    swapchain(window.swapchain)
+{
+    window.handle = nullptr;
+    window.surface = nullptr;
+    window.swapchain = nullptr;
+}
+
+Window Window::fromLuaScript(const std::string& config_file)
+{
+    return Window(config_file);
+}
+
 void Window::close()
 {
     _close = true;

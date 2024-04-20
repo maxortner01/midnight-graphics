@@ -3,16 +3,28 @@
 #include <Def.hpp>
 #include <Utility/Singleton.hpp>
 
+#include "Device.hpp"
+
+namespace mn::Graphics
+{
+    struct Window;
+}
+
 namespace mn::Graphics::Backend
 {
+    enum class Untyped
+    {
+        Surface
+    };
+
     struct Instance : Utility::Singleton<Instance>
     {
         friend class Singleton<Instance>;
 
-        mn::handle_t createSurface(mn::handle_t window) const;
+        mn::handle_t createSurface(Handle<Window> window) const;
         void destroySurface(mn::handle_t surface) const;
 
-        std::pair<mn::handle_t, std::vector<mn::handle_t>> createSwapchain(mn::handle_t window, mn::handle_t surface) const;
+        std::pair<mn::handle_t, std::vector<mn::handle_t>> createSwapchain(Handle<Window> window, mn::handle_t surface) const;
         std::vector<mn::handle_t> getSwapchainImages(mn::handle_t swapchain) const;
         void destroySwapchain(mn::handle_t swapchain) const;
 
@@ -33,14 +45,8 @@ namespace mn::Graphics::Backend
         Instance();
         ~Instance();
 
-        void createDevice();
+        Handle<Instance> handle;
 
-        struct Device
-        {
-            mn::handle_t handle;
-            std::pair<mn::handle_t, uint32_t> graphics_queue;
-        } device;
-
-        mn::handle_t handle, physical_device;
+        std::unique_ptr<Device> device;
     };
 }

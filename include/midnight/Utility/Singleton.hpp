@@ -2,7 +2,7 @@
 
 #include <memory>
 
-namespace Utility
+namespace mn::Utility
 {
     template<typename T>
     struct Singleton

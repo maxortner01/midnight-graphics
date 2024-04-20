@@ -8,7 +8,9 @@
 
 int main()
 {
-    mn::Graphics::Window window("window.lua");
+    using namespace mn::Graphics;
+
+    auto window = Window::fromLuaScript("window.lua");
 
     // Main loop
     while (!window.shouldClose())

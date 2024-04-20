@@ -7,6 +7,12 @@ namespace mn::Graphics
     struct Window
     {
         Window(const std::string& config_file = "");
+
+        static Window fromLuaScript(const std::string& config_file);
+
+        Window(const Window&) = delete;
+        Window(Window&&);
+
         ~Window();
 
         void close();
@@ -22,7 +28,8 @@ namespace mn::Graphics
         } frame_data;
 
         bool _close;
-        mn::handle_t handle, surface, swapchain;
+        Handle<Window> handle;
+        mn::handle_t surface, swapchain;
         std::vector<handle_t> image_views;
     };
 }

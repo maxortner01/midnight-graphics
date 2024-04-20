@@ -1,4 +1,5 @@
 #include <Graphics/Backend/Instance.hpp>
+#include <Graphics/Window.hpp>
 
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
@@ -9,14 +10,14 @@ namespace mn::Graphics::Backend
 
 using handle_t = mn::handle_t;
 
-handle_t Instance::createSurface(handle_t window) const
+handle_t Instance::createSurface(Handle<Window> window) const
 {
-    if (!handle) std::terminate();
+    if (!*handle) std::terminate();
 
     VkSurfaceKHR surface;
     const auto err = SDL_Vulkan_CreateSurface(
-        static_cast<SDL_Window*>(window),
-        static_cast<VkInstance>(handle),
+        window.as<SDL_Window*>(),
+        handle.as<VkInstance>(),
         nullptr,
         &surface
     );
@@ -32,15 +33,15 @@ handle_t Instance::createSurface(handle_t window) const
 
 void Instance::destroySurface(handle_t surface) const
 {
-    if (!handle) std::terminate();
-    vkDestroySurfaceKHR(static_cast<VkInstance>(handle), static_cast<VkSurfaceKHR>(surface), nullptr);
+    if (!*handle) std::terminate();
+    vkDestroySurfaceKHR(handle.as<VkInstance>(), static_cast<VkSurfaceKHR>(surface), nullptr);
 }
 
-std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t window, handle_t surface) const
+std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(Handle<Window> window, handle_t surface) const
 {
-    if (!physical_device) std::terminate();
-    auto* win = static_cast<SDL_Window*>(window);
-    const auto  p_device   = static_cast<VkPhysicalDevice>(physical_device);
+    if (!device || !device->getHandle()) std::terminate();
+    auto* win = window.as<SDL_Window*>();
+    const auto  p_device   = static_cast<VkPhysicalDevice>(device->getPhysicalDevice());
     const auto  vk_surface = static_cast<VkSurfaceKHR>(surface); 
 
     VkSurfaceCapabilitiesKHR capabilities;
@@ -76,6 +77,8 @@ std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t wi
     if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount)
         image_count = capabilities.maxImageCount;
 
+    const auto graphics_queue = device->getGraphicsQueue();
+
     VkSwapchainCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = nullptr,
@@ -89,7 +92,7 @@ std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t wi
         .imageArrayLayers = 1,
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .queueFamilyIndexCount = 1,
-        .pQueueFamilyIndices = &device.graphics_queue.second,
+        .pQueueFamilyIndices = &graphics_queue.index,
         .preTransform = capabilities.currentTransform,
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = VK_PRESENT_MODE_FIFO_KHR,
@@ -97,7 +100,7 @@ std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t wi
     };
 
     VkSwapchainKHR swapchain;
-    const auto err = vkCreateSwapchainKHR(static_cast<VkDevice>(device.handle), &create_info, nullptr, &swapchain);
+    const auto err = vkCreateSwapchainKHR(device->getHandle().as<VkDevice>(), &create_info, nullptr, &swapchain);
     if (err != VK_SUCCESS)
     {
         std::cout << "Error creating swapchain (" << err << ")" << std::endl;
@@ -134,7 +137,7 @@ std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t wi
         };
 
         VkImageView image_view;
-        const auto err = vkCreateImageView(static_cast<VkDevice>(device.handle), &create_info, nullptr, &image_view);
+        const auto err = vkCreateImageView(device->getHandle().as<VkDevice>(), &create_info, nullptr, &image_view);
         if (err != VK_SUCCESS)
             std::terminate();
 
@@ -147,7 +150,7 @@ std::pair<handle_t, std::vector<handle_t>> Instance::createSwapchain(handle_t wi
 std::vector<handle_t> Instance::getSwapchainImages(handle_t swapchain) const
 {
     assert(sizeof(handle_t) == sizeof(VkImage));
-    const auto vk_device = static_cast<VkDevice>(device.handle);
+    const auto vk_device = device->getHandle().as<VkDevice>();
     const auto vk_swap   = static_cast<VkSwapchainKHR>(swapchain);
     uint32_t count;
     vkGetSwapchainImagesKHR(vk_device, vk_swap, &count, nullptr);
@@ -158,27 +161,29 @@ std::vector<handle_t> Instance::getSwapchainImages(handle_t swapchain) const
 
 void Instance::destroySwapchain(handle_t swapchain) const
 {
-    if (!device.handle) std::terminate();
-    vkDestroySwapchainKHR(static_cast<VkDevice>(device.handle), static_cast<VkSwapchainKHR>(swapchain), nullptr);
+    if (!device || !device->getHandle()) std::terminate();
+    vkDestroySwapchainKHR(device->getHandle().as<VkDevice>(), static_cast<VkSwapchainKHR>(swapchain), nullptr);
 }
 
 void Instance::destroyImageView(handle_t image_view) const
 {
-    if (!device.handle) std::terminate();
-    vkDestroyImageView(static_cast<VkDevice>(device.handle), static_cast<VkImageView>(image_view), nullptr);
+    if (!device || !device->getHandle()) std::terminate();
+    vkDestroyImageView(device->getHandle().as<VkDevice>(), static_cast<VkImageView>(image_view), nullptr);
 }
 
 handle_t Instance::createCommandPool() const
 {
+    if (!device || !device->getHandle()) std::terminate();
+
     VkCommandPoolCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = device.graphics_queue.second
+        .queueFamilyIndex = device->getGraphicsQueue().index
     };
 
     VkCommandPool pool;
-    const auto err = vkCreateCommandPool(static_cast<VkDevice>(device.handle), &create_info, nullptr, &pool);
+    const auto err = vkCreateCommandPool(device->getHandle().as<VkDevice>(), &create_info, nullptr, &pool);
     if (err != VK_SUCCESS) std::terminate();
 
     return static_cast<handle_t>(pool);
@@ -186,12 +191,14 @@ handle_t Instance::createCommandPool() const
 
 void Instance::destroyCommandPool(handle_t pool) const
 {
-    if (!device.handle) std::terminate();
-    vkDestroyCommandPool(static_cast<VkDevice>(device.handle), static_cast<VkCommandPool>(pool), nullptr);
+    if (!device || !device->getHandle()) std::terminate();
+    vkDestroyCommandPool(device->getHandle().as<VkDevice>(), static_cast<VkCommandPool>(pool), nullptr);
 }
 
 handle_t Instance::createCommandBuffer(handle_t command_pool) const
 {
+    if (!device || !device->getHandle()) std::terminate();
+
     VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = nullptr,
@@ -201,7 +208,7 @@ handle_t Instance::createCommandBuffer(handle_t command_pool) const
     };
 
     VkCommandBuffer buff;
-    const auto err = vkAllocateCommandBuffers(static_cast<VkDevice>(device.handle), &alloc_info, &buff);
+    const auto err = vkAllocateCommandBuffers(device->getHandle().as<VkDevice>(), &alloc_info, &buff);
     if (err != VK_SUCCESS) std::terminate();
 
     return static_cast<handle_t>(buff);
@@ -209,6 +216,8 @@ handle_t Instance::createCommandBuffer(handle_t command_pool) const
 
 handle_t Instance::createSemaphore() const
 {
+    if (!device || !device->getHandle()) std::terminate();
+
     VkSemaphoreCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         .pNext = nullptr,
@@ -216,19 +225,21 @@ handle_t Instance::createSemaphore() const
     };
 
     VkSemaphore s;
-    const auto err = vkCreateSemaphore(static_cast<VkDevice>(device.handle), &create_info, nullptr, &s);
+    const auto err = vkCreateSemaphore(device->getHandle().as<VkDevice>(), &create_info, nullptr, &s);
     if (err != VK_SUCCESS) std::terminate();
     return static_cast<handle_t>(s);
 }
 
 void Instance::destroySemaphore(handle_t semaphore) const
 {
-    if (!device.handle) std::terminate();
-    vkDestroySemaphore(static_cast<VkDevice>(device.handle), static_cast<VkSemaphore>(semaphore), nullptr);
+    if (!device || !device->getHandle()) std::terminate();
+    vkDestroySemaphore(device->getHandle().as<VkDevice>(), static_cast<VkSemaphore>(semaphore), nullptr);
 }
 
 handle_t Instance::createFence(bool signaled) const
 {
+    if (!device || !device->getHandle()) std::terminate();
+
     VkFenceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .pNext = nullptr,
@@ -236,15 +247,15 @@ handle_t Instance::createFence(bool signaled) const
     };
 
     VkFence fence;
-    const auto err = vkCreateFence(static_cast<VkDevice>(device.handle), &create_info, nullptr, &fence);
+    const auto err = vkCreateFence(device->getHandle().as<VkDevice>(), &create_info, nullptr, &fence);
     if (err != VK_SUCCESS) std::terminate();
     return static_cast<handle_t>(fence);
 }
 
 void Instance::destroyFence(handle_t fence) const
 {
-    if (!device.handle) std::terminate();
-    vkDestroyFence(static_cast<VkDevice>(device.handle), static_cast<VkFence>(fence), nullptr);
+    if (!device || !device->getHandle()) std::terminate();
+    vkDestroyFence(device->getHandle().as<VkDevice>(), static_cast<VkFence>(fence), nullptr);
 }
 
 Instance::Instance() : handle(nullptr)
@@ -318,15 +329,7 @@ Instance::Instance() : handle(nullptr)
     }
 
     std::cout << "Successfully created instance\n";
-    handle = static_cast<handle_t>(instance);
-
-    createDevice();
-}
-
-void Instance::createDevice()
-{
-    const auto instance = static_cast<VkInstance>(handle);
-    if (!instance) std::terminate();
+    handle = instance;
 
     const auto physical_devices = [](const VkInstance& instance)
     {
@@ -367,117 +370,15 @@ void Instance::createDevice()
     }
     if (physical_devices.size()) std::cout << "\n";
 
-    const auto p_device = physical_devices[0];
-    physical_device = static_cast<handle_t>(p_device);
-
-    const auto graphics_index = [](const VkPhysicalDevice& device)
-    {
-        const auto queue_families = [](const VkPhysicalDevice& device)
-        {
-            uint32_t count;
-            vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
-            std::vector<VkQueueFamilyProperties> props(count);
-            vkGetPhysicalDeviceQueueFamilyProperties(device, &count, props.data());
-            return props;
-        }(device);
-
-        uint32_t graphics_index = 9999;
-        for (uint32_t i = 0; i < queue_families.size(); i++)
-            if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            {
-                graphics_index = i;
-                break;
-            }
-        
-        return graphics_index;
-    }(p_device);
-
-    float priority = 1.f;
-    VkDeviceQueueCreateInfo queue_create = {
-        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .pNext = nullptr,
-        .queueFamilyIndex = graphics_index,
-        .queueCount = 1,
-        .pQueuePriorities = &priority
-    };
-
-    // Get the necessary device extension names
-    const auto extensions = [](const VkPhysicalDevice& p_device)
-    {
-        std::vector<const char*> enabledExtensions;
-        std::vector<const char*> requiredExtensions = { 
-            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, 
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 
-            VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, 
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
-            VK_KHR_DEVICE_GROUP_EXTENSION_NAME,
-            VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
-            VK_KHR_MULTIVIEW_EXTENSION_NAME,
-            VK_KHR_MAINTENANCE2_EXTENSION_NAME,
-            "VK_KHR_portability_subset"
-        };
-
-        uint32_t count;
-        vkEnumerateDeviceExtensionProperties(p_device, nullptr, &count, nullptr);
-        std::vector<VkExtensionProperties> extensions(count);
-        vkEnumerateDeviceExtensionProperties(p_device, nullptr, &count, extensions.data());
-        // Go through required extensions and make sure they are in extensions
-        for (const auto& required : requiredExtensions)
-        {
-            bool found = false;
-            for (const auto& ext : extensions)
-                if (!strcmp(ext.extensionName, required))
-                {
-                    found = true;
-                    break;
-                }
-
-            if (!found)
-            {
-                std::cout << "Extension (" << required << ") not supported by this physical device" << std::endl;
-                std::terminate();
-            }
-
-            enabledExtensions.push_back(required);
-        }
-
-        return enabledExtensions;
-    }(p_device);
-
-    VkDeviceCreateInfo create_info = {
-        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &queue_create,
-        .enabledExtensionCount   = static_cast<uint32_t>(extensions.size()),
-        .ppEnabledExtensionNames = extensions.data(),
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = nullptr
-    };
-
-    VkDevice _device;
-    const auto err = vkCreateDevice(p_device, &create_info, nullptr, &_device);
-    if (err != VK_SUCCESS)
-    {
-        std::cout << "Error creating device (" << err << ")" << std::endl;
-        std::terminate();
-    }
-
-    std::cout << "Successfully created device\n";
-    device.handle = static_cast<handle_t>(_device);
-
-    VkQueue _gq;
-    vkGetDeviceQueue(_device, graphics_index, 0, &_gq);
-    device.graphics_queue = std::pair(static_cast<handle_t>(_gq), graphics_index);
+    device = std::make_unique<Device>(handle, physical_devices[0]);
 }
 
 Instance::~Instance()
 {
     if (handle)
     {
-        vkDestroyInstance(static_cast<VkInstance>(handle), nullptr);
+        device.reset();
+        vkDestroyInstance(handle.as<VkInstance>(), nullptr);
         handle = nullptr;
     }
     std::cout << "Destroy\n";
