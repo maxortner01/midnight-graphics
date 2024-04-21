@@ -1,7 +1,11 @@
 #include <Graphics/Backend/Device.hpp>
 #include <Graphics/Backend/Instance.hpp>
 
+#include <Graphics/Window.hpp>
+
 #include <vulkan/vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 namespace mn::Graphics::Backend
 {
@@ -125,6 +129,225 @@ Device::~Device()
         vkDestroyDevice(handle.as<VkDevice>(), nullptr);
         handle = nullptr;
     }
+}
+
+std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window> window, handle_t surface) const
+{
+    if (!handle) std::terminate();
+    auto* win = window.as<SDL_Window*>();
+    const auto  p_device   = static_cast<VkPhysicalDevice>(physical_device);
+    const auto  vk_surface = static_cast<VkSurfaceKHR>(surface); 
+
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_device, vk_surface, &capabilities);
+
+    const auto surfaceFormats = [p_device, vk_surface]()
+    {
+        uint32_t count;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(p_device, vk_surface, &count, nullptr);
+        std::vector<VkSurfaceFormatKHR> formats(count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(p_device, vk_surface, &count, formats.data());
+        return formats;
+    }();
+
+    if (surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM)
+    {
+        std::cout << "surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM" << std::endl;
+        std::terminate();
+    }
+
+    const auto [w, h] = [win, c = capabilities]()
+    {
+        int w, h;
+        SDL_GetWindowSize(win, &w, &h);
+        if (w < 0 || h < 0) std::terminate();
+        return std::tuple(
+            std::clamp(static_cast<uint32_t>(w), c.minImageExtent.width,  c.maxImageExtent.width ), 
+            std::clamp(static_cast<uint32_t>(h), c.minImageExtent.height, c.maxImageExtent.height)
+        );
+    }();
+
+    uint32_t image_count = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount)
+        image_count = capabilities.maxImageCount;
+
+    VkSwapchainCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = nullptr,
+        .flags = 0,
+        .oldSwapchain = nullptr,
+        .minImageCount = capabilities.minImageCount,
+        .surface = vk_surface,
+        .imageExtent = VkExtent2D{ .width = w, .height = h },
+        .imageFormat = surfaceFormats[0].format,
+        .imageColorSpace = surfaceFormats[0].colorSpace,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .queueFamilyIndexCount = 1,
+        .pQueueFamilyIndices = &graphics.index,
+        .preTransform = capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+        .clipped = VK_TRUE
+    };
+
+    VkSwapchainKHR swapchain;
+    const auto err = vkCreateSwapchainKHR(handle.as<VkDevice>(), &create_info, nullptr, &swapchain);
+    if (err != VK_SUCCESS)
+    {
+        std::cout << "Error creating swapchain (" << err << ")" << std::endl;
+        std::terminate();
+    }
+
+    std::pair<handle_t, std::vector<handle_t>> pair;
+    pair.first = static_cast<handle_t>(swapchain);
+
+    const auto images = getSwapchainImages(pair.first);
+    
+    pair.second.reserve(images.size());
+    for (uint32_t i = 0; i < images.size(); i++)
+    {
+        VkImageViewCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .image = static_cast<VkImage>(images[i]),
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format   = surfaceFormats[0].format,
+            .components = {
+                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = VK_COMPONENT_SWIZZLE_IDENTITY
+            },
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        VkImageView image_view;
+        const auto err = vkCreateImageView(handle.as<VkDevice>(), &create_info, nullptr, &image_view);
+        if (err != VK_SUCCESS)
+            std::terminate();
+
+        pair.second.push_back(static_cast<handle_t>(image_view));
+    }
+
+    return pair;
+}
+
+std::vector<handle_t> Device::getSwapchainImages(handle_t swapchain) const
+{
+    assert(sizeof(handle_t) == sizeof(VkImage));
+    const auto vk_device = handle.as<VkDevice>();
+    const auto vk_swap   = static_cast<VkSwapchainKHR>(swapchain);
+    uint32_t count;
+    vkGetSwapchainImagesKHR(vk_device, vk_swap, &count, nullptr);
+    std::vector<handle_t> images(count); 
+    vkGetSwapchainImagesKHR(vk_device, vk_swap, &count, reinterpret_cast<VkImage*>(images.data()));
+    return images;
+}
+
+void Device::destroySwapchain(handle_t swapchain) const
+{
+    if (!handle) std::terminate();
+    vkDestroySwapchainKHR(handle.as<VkDevice>(), static_cast<VkSwapchainKHR>(swapchain), nullptr);
+}
+
+void Device::destroyImageView(handle_t image_view) const
+{
+    if (!handle) std::terminate();
+    vkDestroyImageView(handle.as<VkDevice>(), static_cast<VkImageView>(image_view), nullptr);
+}
+
+handle_t Device::createCommandPool() const
+{
+    if (!handle) std::terminate();
+
+    VkCommandPoolCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = graphics.index
+    };
+
+    VkCommandPool pool;
+    const auto err = vkCreateCommandPool(handle.as<VkDevice>(), &create_info, nullptr, &pool);
+    if (err != VK_SUCCESS) std::terminate();
+
+    return static_cast<handle_t>(pool);
+}
+
+void Device::destroyCommandPool(handle_t pool) const
+{
+    if (!handle) std::terminate();
+    vkDestroyCommandPool(handle.as<VkDevice>(), static_cast<VkCommandPool>(pool), nullptr);
+}
+
+handle_t Device::createCommandBuffer(handle_t command_pool) const
+{
+    if (!handle) std::terminate();
+
+    VkCommandBufferAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .commandPool = static_cast<VkCommandPool>(command_pool),
+        .commandBufferCount = 1,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    };
+
+    VkCommandBuffer buff;
+    const auto err = vkAllocateCommandBuffers(handle.as<VkDevice>(), &alloc_info, &buff);
+    if (err != VK_SUCCESS) std::terminate();
+
+    return static_cast<handle_t>(buff);
+}
+
+handle_t Device::createSemaphore() const
+{
+    if (!handle) std::terminate();
+
+    VkSemaphoreCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0
+    };
+
+    VkSemaphore s;
+    const auto err = vkCreateSemaphore(handle.as<VkDevice>(), &create_info, nullptr, &s);
+    if (err != VK_SUCCESS) std::terminate();
+    return static_cast<handle_t>(s);
+}
+
+void Device::destroySemaphore(handle_t semaphore) const
+{
+    if (!handle) std::terminate();
+    vkDestroySemaphore(handle.as<VkDevice>(), static_cast<VkSemaphore>(semaphore), nullptr);
+}
+
+handle_t Device::createFence(bool signaled) const
+{
+    if (!handle) std::terminate();
+
+    VkFenceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = static_cast<VkFenceCreateFlags>( signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0 )
+    };
+
+    VkFence fence;
+    const auto err = vkCreateFence(handle.as<VkDevice>(), &create_info, nullptr, &fence);
+    if (err != VK_SUCCESS) std::terminate();
+    return static_cast<handle_t>(fence);
+}
+
+void Device::destroyFence(handle_t fence) const
+{
+    if (!handle) std::terminate();
+    vkDestroyFence(handle.as<VkDevice>(), static_cast<VkFence>(fence), nullptr);
 }
 
 }

@@ -45,16 +45,17 @@ Window::Window(const std::string& config_file)
     }
 
     auto instance = mn::Graphics::Backend::Instance::get();
+    const auto& device = instance->getDevice();
     surface   = instance->createSurface(handle);
-    std::tie(swapchain, image_views) = instance->createSwapchain(handle, surface);
+    std::tie(swapchain, image_views) = device->createSwapchain(handle, surface);
 
-    frame_data.command_pool   = instance->createCommandPool();
-    frame_data.command_buffer = instance->createCommandBuffer(frame_data.command_pool);
+    frame_data.command_pool   = device->createCommandPool();
+    frame_data.command_buffer = device->createCommandBuffer(frame_data.command_pool);
 
     // create semaphores
-    frame_data.render_sem = instance->createSemaphore();
-    frame_data.swapchain_sem = instance->createSemaphore();
-    frame_data.render_fence = instance->createFence();
+    frame_data.render_sem = device->createSemaphore();
+    frame_data.swapchain_sem = device->createSemaphore();
+    frame_data.render_fence = device->createFence();
 
     _close = false;
 }
@@ -100,16 +101,17 @@ Window::~Window()
     {
         {
             auto instance = mn::Graphics::Backend::Instance::get();
-            instance->destroySemaphore(frame_data.render_sem);
-            instance->destroySemaphore(frame_data.swapchain_sem);
-            instance->destroyFence(frame_data.render_fence);
+            const auto& device = instance->getDevice();
+            device->destroySemaphore(frame_data.render_sem);
+            device->destroySemaphore(frame_data.swapchain_sem);
+            device->destroyFence(frame_data.render_fence);
 
-            instance->destroyCommandPool(frame_data.command_pool);
+            device->destroyCommandPool(frame_data.command_pool);
 
             for (const auto& iv : image_views)
-                instance->destroyImageView(iv);   
+                device->destroyImageView(iv);   
 
-            instance->destroySwapchain(swapchain);
+            device->destroySwapchain(swapchain);
             instance->destroySurface(surface);
         }
         mn::Graphics::Backend::Instance::destroy();
