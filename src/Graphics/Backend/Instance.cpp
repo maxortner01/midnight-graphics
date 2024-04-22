@@ -12,7 +12,7 @@ using handle_t = mn::handle_t;
 
 handle_t Instance::createSurface(Handle<Window> window) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid instance");
 
     VkSurfaceKHR surface;
     const auto err = SDL_Vulkan_CreateSurface(
@@ -22,18 +22,14 @@ handle_t Instance::createSurface(Handle<Window> window) const
         &surface
     );
 
-    if (err == SDL_FALSE)
-    {
-        std::cout << "Error creating surface: " << SDL_GetError() << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(err, "Error creating surface: " << SDL_GetError());
 
     return static_cast<handle_t>(surface);
 }
 
 void Instance::destroySurface(handle_t surface) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid instance");
     vkDestroySurfaceKHR(handle.as<VkInstance>(), static_cast<VkSurfaceKHR>(surface), nullptr);
 }
 
@@ -101,11 +97,7 @@ Instance::Instance() : handle(nullptr)
 
     VkInstance instance;
     const auto err = vkCreateInstance(&create_info, nullptr, &instance);
-    if (err != VK_SUCCESS)
-    {
-        std::cout << "Error initializing vulkan (" << err << ")" << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating instance (" << err << ")");
 
     std::cout << "Successfully created instance\n";
     handle = instance;
@@ -119,11 +111,7 @@ Instance::Instance() : handle(nullptr)
         return devices;
     }(instance);
 
-    if (!physical_devices.size())
-    {
-        std::cout << "No physical devices found" << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(physical_devices.size(), "No physical devices found");
 
     // We can check if verbose is on or not
     std::cout << "Found " << physical_devices.size() << " physical device(s):\n";

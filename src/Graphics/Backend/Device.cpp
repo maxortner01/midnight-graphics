@@ -14,7 +14,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
     physical_device(p_device)
 {
     const auto instance = _instance.as<VkInstance>();
-    if (!instance) std::terminate();
+    MIDNIGHT_ASSERT(instance, "Device requires a valid instance");
 
     const auto graphics_index = [](const VkPhysicalDevice& device)
     {
@@ -79,11 +79,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
                     break;
                 }
 
-            if (!found)
-            {
-                std::cout << "Extension (" << required << ") not supported by this physical device" << std::endl;
-                std::terminate();
-            }
+            MIDNIGHT_ASSERT(found, "Extension (" << required << ") not supported by this physical device");
 
             enabledExtensions.push_back(required);
         }
@@ -105,11 +101,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
 
     VkDevice _device;
     const auto err = vkCreateDevice(static_cast<VkPhysicalDevice>(p_device), &create_info, nullptr, &_device);
-    if (err != VK_SUCCESS)
-    {
-        std::cout << "Error creating device (" << err << ")" << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating device (" << err << ")");
 
     std::cout << "Successfully created device\n";
     handle = _device;
@@ -133,7 +125,7 @@ Device::~Device()
 
 std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window> window, handle_t surface) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Device invalid");
     auto* win = window.as<SDL_Window*>();
     const auto  p_device   = static_cast<VkPhysicalDevice>(physical_device);
     const auto  vk_surface = static_cast<VkSurfaceKHR>(surface); 
@@ -150,17 +142,13 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
         return formats;
     }();
 
-    if (surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM)
-    {
-        std::cout << "surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM" << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(surfaceFormats[0].format == VK_FORMAT_B8G8R8A8_UNORM, "surfaceFormats[0].format != VK_FORMAT_B8G8R8A8_UNORM");
 
     const auto [w, h] = [win, c = capabilities]()
     {
         int w, h;
         SDL_GetWindowSize(win, &w, &h);
-        if (w < 0 || h < 0) std::terminate();
+        MIDNIGHT_ASSERT(w >= 0 && h >= 0, "Window size invalid");
         return std::tuple(
             std::clamp(static_cast<uint32_t>(w), c.minImageExtent.width,  c.maxImageExtent.width ), 
             std::clamp(static_cast<uint32_t>(h), c.minImageExtent.height, c.maxImageExtent.height)
@@ -193,11 +181,7 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
 
     VkSwapchainKHR swapchain;
     const auto err = vkCreateSwapchainKHR(handle.as<VkDevice>(), &create_info, nullptr, &swapchain);
-    if (err != VK_SUCCESS)
-    {
-        std::cout << "Error creating swapchain (" << err << ")" << std::endl;
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating swapchain (" << err << ")");
 
     std::pair<handle_t, std::vector<handle_t>> pair;
     pair.first = static_cast<handle_t>(swapchain);
@@ -230,8 +214,7 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
 
         VkImageView image_view;
         const auto err = vkCreateImageView(handle.as<VkDevice>(), &create_info, nullptr, &image_view);
-        if (err != VK_SUCCESS)
-            std::terminate();
+        MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating image views (" << err << ")");
 
         pair.second.push_back(static_cast<handle_t>(image_view));
     }
@@ -253,19 +236,19 @@ std::vector<handle_t> Device::getSwapchainImages(handle_t swapchain) const
 
 void Device::destroySwapchain(handle_t swapchain) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroySwapchainKHR(handle.as<VkDevice>(), static_cast<VkSwapchainKHR>(swapchain), nullptr);
 }
 
 void Device::destroyImageView(handle_t image_view) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroyImageView(handle.as<VkDevice>(), static_cast<VkImageView>(image_view), nullptr);
 }
 
 handle_t Device::createCommandPool() const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
 
     VkCommandPoolCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -276,20 +259,20 @@ handle_t Device::createCommandPool() const
 
     VkCommandPool pool;
     const auto err = vkCreateCommandPool(handle.as<VkDevice>(), &create_info, nullptr, &pool);
-    if (err != VK_SUCCESS) std::terminate();
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating command pool (" << err << ")");
 
     return static_cast<handle_t>(pool);
 }
 
 void Device::destroyCommandPool(handle_t pool) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroyCommandPool(handle.as<VkDevice>(), static_cast<VkCommandPool>(pool), nullptr);
 }
 
 handle_t Device::createCommandBuffer(handle_t command_pool) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
 
     VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -301,14 +284,14 @@ handle_t Device::createCommandBuffer(handle_t command_pool) const
 
     VkCommandBuffer buff;
     const auto err = vkAllocateCommandBuffers(handle.as<VkDevice>(), &alloc_info, &buff);
-    if (err != VK_SUCCESS) std::terminate();
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error allocating command buffers (" << err << ")");
 
     return static_cast<handle_t>(buff);
 }
 
 handle_t Device::createSemaphore() const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
 
     VkSemaphoreCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -318,19 +301,19 @@ handle_t Device::createSemaphore() const
 
     VkSemaphore s;
     const auto err = vkCreateSemaphore(handle.as<VkDevice>(), &create_info, nullptr, &s);
-    if (err != VK_SUCCESS) std::terminate();
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating semaphore (" << err << ")");
     return static_cast<handle_t>(s);
 }
 
 void Device::destroySemaphore(handle_t semaphore) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroySemaphore(handle.as<VkDevice>(), static_cast<VkSemaphore>(semaphore), nullptr);
 }
 
 handle_t Device::createFence(bool signaled) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
 
     VkFenceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -340,13 +323,13 @@ handle_t Device::createFence(bool signaled) const
 
     VkFence fence;
     const auto err = vkCreateFence(handle.as<VkDevice>(), &create_info, nullptr, &fence);
-    if (err != VK_SUCCESS) std::terminate();
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating fence (" << err << ")");
     return static_cast<handle_t>(fence);
 }
 
 void Device::destroyFence(handle_t fence) const
 {
-    if (!handle) std::terminate();
+    MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroyFence(handle.as<VkDevice>(), static_cast<VkFence>(fence), nullptr);
 }
 

@@ -14,14 +14,8 @@ using handle_t = mn::handle_t;
 
 Window::Window(const std::string& config_file)
 {
-    if (SDL_WasInit(SDL_INIT_VIDEO)) std::terminate();
-
-    // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    {
-        std::cout << "Error initializing video\n";
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(!SDL_WasInit(SDL_INIT_VIDEO), "SDL has already been initialized!");
+    MIDNIGHT_ASSERT(!SDL_Init(SDL_INIT_VIDEO), "Error initializing video");
 
     // Read in the window information from the file
     const auto [title, width, height] = (config_file.length() ? [](const std::string& file)
@@ -38,11 +32,7 @@ Window::Window(const std::string& config_file)
 
     // Create the window
     handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN));
-    if (!handle)
-    {
-        std::cout << "Error initializing window\n";
-        std::terminate();
-    }
+    MIDNIGHT_ASSERT(handle, "Error initializing window");
 
     auto instance = mn::Graphics::Backend::Instance::get();
     const auto& device = instance->getDevice();

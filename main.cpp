@@ -12,6 +12,8 @@ int main()
 
     auto window = Window::fromLuaScript("window.lua");
 
+    Shader shader(SOURCE_DIR "/shaders/vertex.glsl", ShaderType::Vertex);
+
     // Main loop
     while (!window.shouldClose())
     {
