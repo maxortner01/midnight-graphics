@@ -5,11 +5,16 @@
 namespace mn::Graphics
 {
     struct Window;
+    struct Shader;
 }
 
 namespace mn::Graphics::Backend
 {
     struct Instance;
+    struct CommandPool;
+    struct CommandBuffer;
+    struct Semaphore;
+    struct Fence;
 
     struct Queue
     {
@@ -34,16 +39,19 @@ namespace mn::Graphics::Backend
 
         void destroyImageView(mn::handle_t image_view) const;
 
-        mn::handle_t createCommandPool() const;
-        void destroyCommandPool(mn::handle_t pool) const;
+        Handle<CommandPool> createCommandPool() const;
+        void destroyCommandPool(Handle<CommandPool> pool) const;
 
-        mn::handle_t createCommandBuffer(mn::handle_t command_pool) const;
+        Handle<CommandBuffer> createCommandBuffer(Handle<CommandPool> command_pool) const;
 
-        mn::handle_t createSemaphore() const;
-        void destroySemaphore(mn::handle_t semaphore) const;
+        Handle<Semaphore> createSemaphore() const;
+        void destroySemaphore(Handle<Semaphore> semaphore) const;
 
-        mn::handle_t createFence(bool signaled = true) const;
-        void destroyFence(mn::handle_t fence) const;
+        Handle<Fence> createFence(bool signaled = true) const;
+        void destroyFence(Handle<Fence> fence) const;
+
+        Handle<Shader> createShader(const std::vector<uint32_t>& data) const;
+        void destroyShader(Handle<Shader> shader) const;
 
     private:
         Handle<Device> handle;

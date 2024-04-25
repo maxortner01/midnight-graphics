@@ -2,6 +2,9 @@
 
 #include <Def.hpp>
 
+#include <Graphics/Backend/Command.hpp>
+#include <Graphics/Backend/Sync.hpp>
+
 namespace mn::Graphics
 {
     struct Window
@@ -24,7 +27,13 @@ namespace mn::Graphics
     private:
         struct FrameData
         {
-            mn::handle_t command_pool, command_buffer, swapchain_sem, render_sem, render_fence;
+            std::unique_ptr<Backend::CommandBuffer> command_buffer;
+            std::unique_ptr<Backend::CommandPool>   command_pool;
+            std::unique_ptr<Backend::Semaphore> swapchain_sem, render_sem;
+            std::unique_ptr<Backend::Fence> render_fence;
+
+            void create();
+            void destroy();
         } frame_data;
 
         bool _close;

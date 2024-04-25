@@ -19,6 +19,8 @@ add_executable(main
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Device.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Command.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Sync.cpp
 
     ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp

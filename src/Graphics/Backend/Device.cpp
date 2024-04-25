@@ -1,5 +1,6 @@
 #include <Graphics/Backend/Device.hpp>
 #include <Graphics/Backend/Instance.hpp>
+#include <Graphics/Backend/Sync.hpp>
 
 #include <Graphics/Window.hpp>
 
@@ -246,7 +247,7 @@ void Device::destroyImageView(handle_t image_view) const
     vkDestroyImageView(handle.as<VkDevice>(), static_cast<VkImageView>(image_view), nullptr);
 }
 
-handle_t Device::createCommandPool() const
+Handle<CommandPool> Device::createCommandPool() const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
 
@@ -261,16 +262,16 @@ handle_t Device::createCommandPool() const
     const auto err = vkCreateCommandPool(handle.as<VkDevice>(), &create_info, nullptr, &pool);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating command pool (" << err << ")");
 
-    return static_cast<handle_t>(pool);
+    return pool;
 }
 
-void Device::destroyCommandPool(handle_t pool) const
+void Device::destroyCommandPool(Handle<CommandPool> pool) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
-    vkDestroyCommandPool(handle.as<VkDevice>(), static_cast<VkCommandPool>(pool), nullptr);
+    vkDestroyCommandPool(handle.as<VkDevice>(), pool.as<VkCommandPool>(), nullptr);
 }
 
-handle_t Device::createCommandBuffer(handle_t command_pool) const
+Handle<CommandBuffer> Device::createCommandBuffer(Handle<CommandPool> command_pool) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
 
@@ -289,7 +290,7 @@ handle_t Device::createCommandBuffer(handle_t command_pool) const
     return static_cast<handle_t>(buff);
 }
 
-handle_t Device::createSemaphore() const
+Handle<Semaphore> Device::createSemaphore() const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
 
@@ -302,16 +303,16 @@ handle_t Device::createSemaphore() const
     VkSemaphore s;
     const auto err = vkCreateSemaphore(handle.as<VkDevice>(), &create_info, nullptr, &s);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating semaphore (" << err << ")");
-    return static_cast<handle_t>(s);
+    return s;
 }
 
-void Device::destroySemaphore(handle_t semaphore) const
+void Device::destroySemaphore(Handle<Semaphore> semaphore) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
-    vkDestroySemaphore(handle.as<VkDevice>(), static_cast<VkSemaphore>(semaphore), nullptr);
+    vkDestroySemaphore(handle.as<VkDevice>(), semaphore.as<VkSemaphore>(), nullptr);
 }
 
-handle_t Device::createFence(bool signaled) const
+Handle<Fence> Device::createFence(bool signaled) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
 
@@ -324,13 +325,41 @@ handle_t Device::createFence(bool signaled) const
     VkFence fence;
     const auto err = vkCreateFence(handle.as<VkDevice>(), &create_info, nullptr, &fence);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating fence (" << err << ")");
-    return static_cast<handle_t>(fence);
+    return fence;
 }
 
-void Device::destroyFence(handle_t fence) const
+void Device::destroyFence(Handle<Fence> fence) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
-    vkDestroyFence(handle.as<VkDevice>(), static_cast<VkFence>(fence), nullptr);
+    vkDestroyFence(handle.as<VkDevice>(), fence.as<VkFence>(), nullptr);
+}
+
+Handle<Shader> Device::createShader(const std::vector<uint32_t>& data) const
+{
+    VkShaderModuleCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .codeSize = data.size() * sizeof(uint32_t),
+        .pCode = &data[0]
+    };
+
+    VkShaderModule shader_module;
+    const auto err = vkCreateShaderModule(
+        handle.as<VkDevice>(),
+        &create_info,
+        nullptr,
+        &shader_module
+    );
+
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating shader module");
+    return Handle<Shader>(shader_module);
+}
+
+void Device::destroyShader(Handle<Shader> shader) const
+{
+    MIDNIGHT_ASSERT(handle, "Invalid device");
+    vkDestroyShaderModule(handle.as<VkDevice>(), shader.as<VkShaderModule>(), nullptr);
 }
 
 }

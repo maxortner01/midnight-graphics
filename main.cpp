@@ -12,7 +12,10 @@ int main()
 
     auto window = Window::fromLuaScript("window.lua");
 
-    Shader shader(SOURCE_DIR "/shaders/vertex.glsl", ShaderType::Vertex);
+    Pipeline pipeline;
+    pipeline.addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex);
+    pipeline.addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment);
+    pipeline.build();
 
     // Main loop
     while (!window.shouldClose())
@@ -24,6 +27,7 @@ int main()
                 window.close();
         }
 
+        window.startFrame();
         window.update();
     }
 }

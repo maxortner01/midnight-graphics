@@ -39,13 +39,7 @@ Window::Window(const std::string& config_file)
     surface   = instance->createSurface(handle);
     std::tie(swapchain, image_views) = device->createSwapchain(handle, surface);
 
-    frame_data.command_pool   = device->createCommandPool();
-    frame_data.command_buffer = device->createCommandBuffer(frame_data.command_pool);
-
-    // create semaphores
-    frame_data.render_sem = device->createSemaphore();
-    frame_data.swapchain_sem = device->createSemaphore();
-    frame_data.render_fence = device->createFence();
+    frame_data.create();
 
     _close = false;
 }
@@ -73,6 +67,9 @@ void Window::close()
 
 void Window::startFrame() const
 {
+    frame_data.render_fence->wait();
+    frame_data.render_fence->reset();
+
     /*
     auto instance = Instance::get();
     instance->waitForFence(frame_data.render_fence);
@@ -92,11 +89,7 @@ Window::~Window()
         {
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
-            device->destroySemaphore(frame_data.render_sem);
-            device->destroySemaphore(frame_data.swapchain_sem);
-            device->destroyFence(frame_data.render_fence);
-
-            device->destroyCommandPool(frame_data.command_pool);
+            frame_data.destroy();
 
             for (const auto& iv : image_views)
                 device->destroyImageView(iv);   
@@ -114,6 +107,26 @@ Window::~Window()
 void Window::update() const
 {
     SDL_UpdateWindowSurface(static_cast<SDL_Window*>(handle));
+}
+
+void Window::FrameData::create()
+{
+    auto& device = Backend::Instance::get()->getDevice();
+    command_pool = std::make_unique<Graphics::Backend::CommandPool>();
+    command_buffer = command_pool->allocateBuffer();
+
+    // create semaphores
+    render_sem    = std::make_unique<Backend::Semaphore>();
+    swapchain_sem = std::make_unique<Backend::Semaphore>();
+    render_fence  = std::make_unique<Backend::Fence>();
+}
+
+void Window::FrameData::destroy()
+{
+    render_sem.reset();
+    swapchain_sem.reset();
+    render_fence.reset();
+    command_pool.reset();
 }
 
 }
