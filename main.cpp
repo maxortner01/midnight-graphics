@@ -27,7 +27,8 @@ int main()
                 window.close();
         }
 
-        window.startFrame();
-        window.update();
+        auto frame = window.startFrame();
+        window.testDisplay(frame);
+        window.endFrame(frame);
     }
 }

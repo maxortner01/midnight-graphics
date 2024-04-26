@@ -19,10 +19,12 @@ namespace mn::Graphics
         ~Window();
 
         void close();
-        void startFrame() const;
-        bool shouldClose() const { return _close; }
+        
+        uint32_t startFrame() const;
+        void testDisplay(uint32_t index) const;
+        void endFrame(uint32_t image) const;
 
-        void update() const;
+        bool shouldClose() const { return _close; }
 
     private:
         struct FrameData
@@ -36,9 +38,12 @@ namespace mn::Graphics
             void destroy();
         } frame_data;
 
+        uint32_t next_image_index() const;
+
         bool _close;
         Handle<Window> handle;
         mn::handle_t surface, swapchain;
-        std::vector<handle_t> image_views;
+        //std::vector<handle_t> image_views;
+        std::vector<handle_t> images;
     };
 }

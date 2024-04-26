@@ -88,9 +88,15 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         return enabledExtensions;
     }(static_cast<VkPhysicalDevice>(p_device));
 
+    VkPhysicalDeviceSynchronization2Features sync = {
+        .pNext = nullptr,
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+        .synchronization2 = true
+    };
+
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = nullptr,
+        .pNext = &sync,
         .flags = 0,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queue_create,
@@ -171,7 +177,7 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
         .imageFormat = surfaceFormats[0].format,
         .imageColorSpace = surfaceFormats[0].colorSpace,
         .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .queueFamilyIndexCount = 1,
         .pQueueFamilyIndices = &graphics.index,
         .preTransform = capabilities.currentTransform,
@@ -186,7 +192,9 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
 
     std::pair<handle_t, std::vector<handle_t>> pair;
     pair.first = static_cast<handle_t>(swapchain);
-
+    pair.second = getSwapchainImages(pair.first);
+    
+    /*
     const auto images = getSwapchainImages(pair.first);
     
     pair.second.reserve(images.size());
@@ -218,7 +226,7 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
         MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating image views (" << err << ")");
 
         pair.second.push_back(static_cast<handle_t>(image_view));
-    }
+    }*/
 
     return pair;
 }

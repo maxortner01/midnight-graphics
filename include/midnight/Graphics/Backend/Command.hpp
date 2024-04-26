@@ -27,6 +27,12 @@ namespace mn::Graphics::Backend
         CommandBuffer(const CommandBuffer&) = delete;
         CommandBuffer(CommandBuffer&&) = default;
 
+        void begin(bool one_time = true) const;
+        void end() const;
+        void reset() const;
+
+        auto getHandle() const { return handle; }
+
     private:    
         CommandBuffer(Handle<CommandPool> pool);
 
