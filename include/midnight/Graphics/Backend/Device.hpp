@@ -6,6 +6,7 @@ namespace mn::Graphics
 {
     struct Window;
     struct Shader;
+    struct Image;
 }
 
 namespace mn::Graphics::Backend
@@ -37,6 +38,10 @@ namespace mn::Graphics::Backend
         std::vector<mn::handle_t> getSwapchainImages(mn::handle_t swapchain) const;
         void destroySwapchain(mn::handle_t swapchain) const;
 
+        Handle<Image> createImage() const;
+        void destroyImage(Handle<Image> image) const;
+
+        mn::handle_t createImageView(Handle<Image> image) const;
         void destroyImageView(mn::handle_t image_view) const;
 
         Handle<CommandPool> createCommandPool() const;

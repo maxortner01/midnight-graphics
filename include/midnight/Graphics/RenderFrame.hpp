@@ -3,6 +3,7 @@
 #include <Def.hpp>
 
 #include "Buffer.hpp"
+#include "Image.hpp"
 
 namespace mn::Graphics
 {
@@ -15,7 +16,7 @@ namespace mn::Graphics
         friend struct Window;
 
         const uint32_t image_index;
-        const mn::handle_t image;
+        std::shared_ptr<const Image> image;
 
         void startRender();
         void endRender();
@@ -24,7 +25,7 @@ namespace mn::Graphics
         void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
 
     private:
-        RenderFrame(uint32_t i, mn::handle_t im) : image_index(i), image(im) { }
+        RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }
 
         std::shared_ptr<FrameData> frame_data;
     };

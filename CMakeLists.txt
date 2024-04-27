@@ -32,6 +32,7 @@ add_executable(main
     ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/RenderFrame.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Image.cpp
 
     ${SPIRV_REFLECT}
 )

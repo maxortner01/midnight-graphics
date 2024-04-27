@@ -34,7 +34,6 @@ namespace mn::Graphics
         void close();
         
         RenderFrame startFrame() const;
-        void testDisplay(RenderFrame& rf) const;
         void endFrame(RenderFrame& rf) const;
 
         bool shouldClose() const { return _close; }
@@ -47,7 +46,7 @@ namespace mn::Graphics
         bool _close;
         Handle<Window> handle;
         mn::handle_t surface, swapchain;
-        std::vector<handle_t> images;
+        std::vector<std::shared_ptr<Image>> images;
         std::shared_ptr<FrameData> frame_data;
     };
 }

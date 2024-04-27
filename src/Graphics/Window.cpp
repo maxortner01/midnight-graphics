@@ -60,7 +60,11 @@ Window::Window(const std::string& config_file)
     auto instance = mn::Graphics::Backend::Instance::get();
     const auto& device = instance->getDevice();
     surface   = instance->createSurface(handle);
-    std::tie(swapchain, images) = device->createSwapchain(handle, surface);
+
+    std::vector<mn::handle_t> _images;
+    std::tie(swapchain, _images) = device->createSwapchain(handle, surface);
+    for (const auto& image : _images)
+        images.emplace_back(std::make_shared<Image>(image, false));
 
     frame_data = std::make_shared<FrameData>();
     frame_data->create();
@@ -137,7 +141,7 @@ RenderFrame Window::startFrame() const
     frame_data->command_buffer->reset();
     frame_data->command_buffer->begin();
 
-    auto _image = static_cast<VkImage>(images[n_image]);
+    auto _image = images[n_image]->getHandle().as<VkImage>();
     auto _cmd   = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
@@ -147,43 +151,11 @@ RenderFrame Window::startFrame() const
     return frame;
 }
 
-void Window::testDisplay(RenderFrame& rf) const
-{
-    static int _frameNumber = 0;
-
-    VkClearColorValue clearValue;
-	float flash = abs(sin(_frameNumber / 120.f));
-	clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
-
-	VkImageSubresourceRange clearRange = [](VkImageAspectFlags aspectMask)
-    {
-        return VkImageSubresourceRange {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-    }(VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//clear image
-	vkCmdClearColorImage(
-        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        static_cast<VkImage>(images[rf.image_index]), 
-        VK_IMAGE_LAYOUT_GENERAL, 
-        &clearValue, 
-        1, 
-        &clearRange);
-
-    _frameNumber++;
-
-}
-
 void Window::endFrame(RenderFrame& rf) const
 {
     // All this code essentially copied...
     
-    auto _image = static_cast<VkImage>(images[rf.image_index]);
+    auto _image = images[rf.image_index]->getHandle().as<VkImage>();
     auto _cmd   = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     frame_data->command_buffer->end();
@@ -276,6 +248,8 @@ Window::~Window()
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
             finishWork();
+
+            images.clear();
 
             frame_data->destroy();
 

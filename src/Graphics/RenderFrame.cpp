@@ -2,6 +2,9 @@
 #include <Graphics/RenderFrame.hpp>
 #include <Graphics/Pipeline.hpp>
 
+#include <Graphics/Backend/Instance.hpp>
+#include <Graphics/Backend/Device.hpp>
+
 #include <vulkan/vulkan.h>
 
 namespace mn::Graphics
@@ -12,20 +15,41 @@ void RenderFrame::startRender()
     VkRenderingAttachmentInfo color_attach = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
-        .
+        .imageView = image->getColorImageView().as<VkImageView>(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
     VkRenderingInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .pNext = nullptr,
-        .color
-    }
-    //vkCmdBeginRendering()
+        .flags = 0,
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attach,
+        .renderArea = { 0, 0, 1280, 720 }
+    };
+
+    const auto command_buffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    VkRect2D sc = { 0, 0, 1280, 720 };
+    vkCmdSetScissor(command_buffer, 0, 1, &sc);
+
+    VkViewport extent = { .x = 0, .y = 0, .width = 1280, .height = 720, .minDepth = 0, .maxDepth = 1.f };
+    vkCmdSetViewport(command_buffer, 0, 1, &extent);
+
+    auto& device = Backend::Instance::get()->getDevice();
+    auto pvkCmdBeginRenderingKHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkCmdBeginRenderingKHR");
+    ((PFN_vkCmdBeginRenderingKHR)(pvkCmdBeginRenderingKHR))(
+        command_buffer,
+        &render_info);
 }
 
 void RenderFrame::endRender()
 {
+    auto& device = Backend::Instance::get()->getDevice();
 
+    auto pvkCmdEndRenderingKHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkCmdEndRenderingKHR");
+    ((PFN_vkCmdEndRenderingKHR)(pvkCmdEndRenderingKHR))(frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
 }
 
 void RenderFrame::clear(std::tuple<float, float, float> color) const
@@ -47,7 +71,7 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
 	//clear image
 	vkCmdClearColorImage(
         frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        static_cast<VkImage>(image), 
+        image->getHandle().as<VkImage>(), 
         VK_IMAGE_LAYOUT_GENERAL, 
         &clearValue, 
         1, 

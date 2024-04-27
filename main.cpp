@@ -27,6 +27,7 @@ int main()
     auto pipeline = PipelineBuilder().createLayout()
         .addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex)
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
+        .setColorFormat(44)
         .setBackfaceCull(false)
         .build();
 
@@ -56,7 +57,11 @@ int main()
 
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
+        
+        frame.startRender();
         frame.draw(pipeline, vertexBuffer);
+        frame.endRender();
+
         window.endFrame(frame);
 
         frameCount++;

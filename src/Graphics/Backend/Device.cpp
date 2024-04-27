@@ -3,6 +3,7 @@
 #include <Graphics/Backend/Sync.hpp>
 
 #include <Graphics/Window.hpp>
+#include <Graphics/Image.hpp>
 
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
@@ -253,6 +254,46 @@ void Device::destroySwapchain(handle_t swapchain) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroySwapchainKHR(handle.as<VkDevice>(), static_cast<VkSwapchainKHR>(swapchain), nullptr);
+}
+
+Handle<Image> Device::createImage() const
+{
+    //vkCreateImage(handle.as<VkDevice>(), )
+}
+
+void Device::destroyImage(Handle<Image> image) const
+{
+
+}
+
+mn::handle_t Device::createImageView(Handle<Image> image) const
+{
+    VkImageViewCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .format = VK_FORMAT_B8G8R8A8_UNORM,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .image = image.as<VkImage>(),
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY
+        },
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    VkImageView iv;
+    const auto err = vkCreateImageView(handle.as<VkDevice>(), &create_info, nullptr, &iv);
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating image view: " << err);
+    return iv;
 }
 
 void Device::destroyImageView(handle_t image_view) const
