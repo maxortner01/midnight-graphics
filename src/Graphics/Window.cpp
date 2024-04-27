@@ -61,11 +61,12 @@ Window::Window(const std::string& config_file)
     const auto& device = instance->getDevice();
     surface   = instance->createSurface(handle);
 
-    std::vector<mn::handle_t> _images;
-    std::tie(swapchain, _images) = device->createSwapchain(handle, surface);
+    //std::tie(swapchain, _images, format, size) = device->createSwapchain(handle, surface);
+    const auto [ s, _images, format, size ] = device->createSwapchain(handle, surface);
     for (const auto& image : _images)
-        images.emplace_back(std::make_shared<Image>(image, false));
+        images.emplace_back(std::make_shared<Image>(image, format, size, false));
 
+    swapchain = s;
     frame_data = std::make_shared<FrameData>();
     frame_data->create();
 

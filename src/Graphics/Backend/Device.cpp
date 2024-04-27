@@ -137,7 +137,8 @@ Device::~Device()
     }
 }
 
-std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window> window, handle_t surface) const
+std::tuple<handle_t, std::vector<handle_t>, uint32_t, std::pair<uint32_t, uint32_t>> 
+Device::createSwapchain(Handle<Window> window, handle_t surface) const
 {
     MIDNIGHT_ASSERT(handle, "Device invalid");
     auto* win = window.as<SDL_Window*>();
@@ -197,9 +198,16 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
     const auto err = vkCreateSwapchainKHR(handle.as<VkDevice>(), &create_info, nullptr, &swapchain);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating swapchain (" << err << ")");
 
+    return std::tuple(
+        static_cast<handle_t>(swapchain), 
+        getSwapchainImages(swapchain), 
+        static_cast<uint32_t>(surfaceFormats[0].format), 
+        std::pair(w, h));
+
+    /*
     std::pair<handle_t, std::vector<handle_t>> pair;
     pair.first = static_cast<handle_t>(swapchain);
-    pair.second = getSwapchainImages(pair.first);
+    pair.second = getSwapchainImages(pair.first);*/
     
     /*
     const auto images = getSwapchainImages(pair.first);
@@ -235,7 +243,7 @@ std::pair<handle_t, std::vector<handle_t>> Device::createSwapchain(Handle<Window
         pair.second.push_back(static_cast<handle_t>(image_view));
     }*/
 
-    return pair;
+    //return pair;
 }
 
 std::vector<handle_t> Device::getSwapchainImages(handle_t swapchain) const
