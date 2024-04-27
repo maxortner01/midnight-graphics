@@ -5,8 +5,10 @@
 
 namespace mn::Graphics
 {
-    Image::Image(Handle<Image> h, bool depth) :
-        ObjectHandle(h)
+    Image::Image(Handle<Image> h, uint32_t f, std::pair<uint32_t, uint32_t> s, bool depth) :
+        ObjectHandle(h),
+        _format(f),
+        _size(s)
     {   
         auto& device = Backend::Instance::get()->getDevice();
         color_view = device->createImageView(h);
