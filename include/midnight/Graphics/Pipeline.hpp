@@ -69,8 +69,12 @@ namespace mn::Graphics
 
         ~Pipeline();
 
+        auto getBindingStride() const { return binding_strides[0]; }
+
     private:
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
+
+        std::vector<uint32_t> binding_strides;
     };
 
     struct PipelineBuilder

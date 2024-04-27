@@ -23,6 +23,8 @@ int main()
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
         .build();
 
+    uint32_t frameCount = 0;
+
     // Main loop
     while (!window.shouldClose())
     {
@@ -34,7 +36,9 @@ int main()
         }
 
         auto frame = window.startFrame();
-        window.testDisplay(frame);
+        frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
         window.endFrame(frame);
+
+        frameCount++;
     }
 }

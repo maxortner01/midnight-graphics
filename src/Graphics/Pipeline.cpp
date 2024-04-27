@@ -489,7 +489,9 @@ Pipeline PipelineBuilder::build() const
     const auto err = vkCreateGraphicsPipelines(device->getHandle().as<VkDevice>(), VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating graphics pipeline: " << string_VkResult(err));
 
-    return Pipeline(pipeline);
+    Pipeline p(pipeline);
+    p.binding_strides.push_back(binding.stride);
+    return p;
 }
 
 }

@@ -13,6 +13,52 @@ namespace mn::Graphics
 {
 using handle_t = mn::handle_t;
 
+void FrameData::create()
+{
+    auto& device = Backend::Instance::get()->getDevice();
+    command_pool = std::make_unique<Graphics::Backend::CommandPool>();
+    command_buffer = command_pool->allocateBuffer();
+
+    // create semaphores
+    render_sem    = std::make_unique<Backend::Semaphore>();
+    swapchain_sem = std::make_unique<Backend::Semaphore>();
+    render_fence  = std::make_unique<Backend::Fence>();
+}
+
+void FrameData::destroy()
+{
+    render_sem.reset();
+    swapchain_sem.reset();
+    render_fence.reset();
+    command_pool.reset();
+}
+
+void RenderFrame::clear(std::tuple<float, float, float> color) const
+{   
+    VkClearColorValue clearValue;
+	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), 1.0f } };
+
+	VkImageSubresourceRange clearRange = [](VkImageAspectFlags aspectMask)
+    {
+        return VkImageSubresourceRange {
+            .aspectMask = aspectMask,
+            .baseMipLevel = 0,
+            .levelCount = VK_REMAINING_MIP_LEVELS,
+            .baseArrayLayer = 0,
+            .layerCount = VK_REMAINING_ARRAY_LAYERS
+        };
+    }(VK_IMAGE_ASPECT_COLOR_BIT);
+
+	//clear image
+	vkCmdClearColorImage(
+        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
+        static_cast<VkImage>(image), 
+        VK_IMAGE_LAYOUT_GENERAL, 
+        &clearValue, 
+        1, 
+        &clearRange);
+}
+
 Window::Window(const std::string& config_file)
 {
     MIDNIGHT_ASSERT(!SDL_WasInit(SDL_INIT_VIDEO), "SDL has already been initialized!");
@@ -40,7 +86,8 @@ Window::Window(const std::string& config_file)
     surface   = instance->createSurface(handle);
     std::tie(swapchain, images) = device->createSwapchain(handle, surface);
 
-    frame_data.create();
+    frame_data = std::make_shared<FrameData>();
+    frame_data->create();
 
     _close = false;
 }
@@ -105,22 +152,23 @@ void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layo
 
 RenderFrame Window::startFrame() const
 {
-    frame_data.render_fence->wait();
-    frame_data.render_fence->reset();
+    frame_data->render_fence->wait();
+    frame_data->render_fence->reset();
     auto n_image = next_image_index();
 
     auto& device = Backend::Instance::get()->getDevice();
     vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
-    frame_data.command_buffer->reset();
-    frame_data.command_buffer->begin();
+    frame_data->command_buffer->reset();
+    frame_data->command_buffer->begin();
 
     auto _image = static_cast<VkImage>(images[n_image]);
-    auto _cmd   = frame_data.command_buffer->getHandle().as<VkCommandBuffer>();
+    auto _cmd   = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-    return RenderFrame {
-        .image_index = n_image
-    };
+    RenderFrame frame(n_image, images[n_image]);
+    frame.frame_data = frame_data;
+
+    return frame;
 }
 
 void Window::testDisplay(RenderFrame& rf) const
@@ -144,7 +192,7 @@ void Window::testDisplay(RenderFrame& rf) const
 
 	//clear image
 	vkCmdClearColorImage(
-        frame_data.command_buffer->getHandle().as<VkCommandBuffer>(), 
+        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
         static_cast<VkImage>(images[rf.image_index]), 
         VK_IMAGE_LAYOUT_GENERAL, 
         &clearValue, 
@@ -160,9 +208,9 @@ void Window::endFrame(RenderFrame& rf) const
     // All this code essentially copied...
     
     auto _image = static_cast<VkImage>(images[rf.image_index]);
-    auto _cmd   = frame_data.command_buffer->getHandle().as<VkCommandBuffer>();
+    auto _cmd   = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    frame_data.command_buffer->end();
+    frame_data->command_buffer->end();
 
     //SDL_UpdateWindowSurface(static_cast<SDL_Window*>(handle));
     const auto semaphore_submit_info = [](VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)
@@ -208,9 +256,9 @@ void Window::endFrame(RenderFrame& rf) const
         return info;
     };
 
-    auto cmd_info    = command_buffer_submit_info(frame_data.command_buffer->getHandle().as<VkCommandBuffer>());
-    auto wait_info   = semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, frame_data.swapchain_sem->getHandle().as<VkSemaphore>());
-	auto signal_info = semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, frame_data.render_sem->getHandle().as<VkSemaphore>());	
+    auto cmd_info    = command_buffer_submit_info(frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
+    auto wait_info   = semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, frame_data->swapchain_sem->getHandle().as<VkSemaphore>());
+	auto signal_info = semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, frame_data->render_sem->getHandle().as<VkSemaphore>());	
 	
 	const auto submit = submit_info(&cmd_info, &signal_info, &wait_info);
 
@@ -219,10 +267,10 @@ void Window::endFrame(RenderFrame& rf) const
 	//submit command buffer to the queue and execute it.
 	// _renderFence will now block until the graphic commands finish execution
     PFN_vkVoidFunction pvkQueueSubmit2KHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkQueueSubmit2KHR");
-    ((PFN_vkQueueSubmit2KHR)(pvkQueueSubmit2KHR))(static_cast<VkQueue>(device->getGraphicsQueue().handle), 1, &submit, frame_data.render_fence->getHandle().as<VkFence>());
+    ((PFN_vkQueueSubmit2KHR)(pvkQueueSubmit2KHR))(static_cast<VkQueue>(device->getGraphicsQueue().handle), 1, &submit, frame_data->render_fence->getHandle().as<VkFence>());
 
     const auto _swapchain = static_cast<VkSwapchainKHR>(swapchain);
-    const auto _sema = static_cast<VkSemaphore>(frame_data.render_sem->getHandle());
+    const auto _sema = static_cast<VkSemaphore>(frame_data->render_sem->getHandle());
     VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.pNext = nullptr;
@@ -245,7 +293,7 @@ Window::~Window()
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
             vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
-            frame_data.destroy();
+            frame_data->destroy();
 
             /*
             for (const auto& iv : image_views)
@@ -261,26 +309,6 @@ Window::~Window()
     }
 }
 
-void Window::FrameData::create()
-{
-    auto& device = Backend::Instance::get()->getDevice();
-    command_pool = std::make_unique<Graphics::Backend::CommandPool>();
-    command_buffer = command_pool->allocateBuffer();
-
-    // create semaphores
-    render_sem    = std::make_unique<Backend::Semaphore>();
-    swapchain_sem = std::make_unique<Backend::Semaphore>();
-    render_fence  = std::make_unique<Backend::Fence>();
-}
-
-void Window::FrameData::destroy()
-{
-    render_sem.reset();
-    swapchain_sem.reset();
-    render_fence.reset();
-    command_pool.reset();
-}
-
 uint32_t Window::next_image_index() const
 {
     auto& device = Backend::Instance::get()->getDevice();
@@ -290,7 +318,7 @@ uint32_t Window::next_image_index() const
         device->getHandle().as<VkDevice>(), 
         static_cast<VkSwapchainKHR>(swapchain), 
         1000000000, 
-        frame_data.swapchain_sem->getHandle().as<VkSemaphore>(),
+        frame_data->swapchain_sem->getHandle().as<VkSemaphore>(),
         VK_NULL_HANDLE,
         &index);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error getting next image: " << err);
