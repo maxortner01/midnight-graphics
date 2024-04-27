@@ -1,4 +1,6 @@
 #include <Graphics/Window.hpp>
+#include <Graphics/RenderFrame.hpp>
+
 #include <Graphics/Backend/Instance.hpp>
 
 #include <SL/Lua.hpp>
@@ -31,32 +33,6 @@ void FrameData::destroy()
     swapchain_sem.reset();
     render_fence.reset();
     command_pool.reset();
-}
-
-void RenderFrame::clear(std::tuple<float, float, float> color) const
-{   
-    VkClearColorValue clearValue;
-	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), 1.0f } };
-
-	VkImageSubresourceRange clearRange = [](VkImageAspectFlags aspectMask)
-    {
-        return VkImageSubresourceRange {
-            .aspectMask = aspectMask,
-            .baseMipLevel = 0,
-            .levelCount = VK_REMAINING_MIP_LEVELS,
-            .baseArrayLayer = 0,
-            .layerCount = VK_REMAINING_ARRAY_LAYERS
-        };
-    }(VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//clear image
-	vkCmdClearColorImage(
-        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        static_cast<VkImage>(image), 
-        VK_IMAGE_LAYOUT_GENERAL, 
-        &clearValue, 
-        1, 
-        &clearRange);
 }
 
 Window::Window(const std::string& config_file)
@@ -285,6 +261,13 @@ void Window::endFrame(RenderFrame& rf) const
 	const auto err = vkQueuePresentKHR(static_cast<VkQueue>(device->getGraphicsQueue().handle), &presentInfo);
 }
 
+void Window::finishWork() const
+{
+    auto instance = mn::Graphics::Backend::Instance::get();
+    const auto& device = instance->getDevice();
+    vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
+}
+
 Window::~Window()
 {
     if (handle)
@@ -292,12 +275,9 @@ Window::~Window()
         {
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
-            vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
-            frame_data->destroy();
+            finishWork();
 
-            /*
-            for (const auto& iv : image_views)
-                device->destroyImageView(iv); */  
+            frame_data->destroy();
 
             device->destroySwapchain(swapchain);
             instance->destroySurface(surface);

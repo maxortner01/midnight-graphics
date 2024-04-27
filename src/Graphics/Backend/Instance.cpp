@@ -5,6 +5,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
+#include <vk_mem_alloc.h>
+
 namespace mn::Graphics::Backend
 {
 
@@ -138,12 +140,30 @@ Instance::Instance() : handle(nullptr)
     if (physical_devices.size()) std::cout << "\n";
 
     device = std::make_unique<Device>(handle, physical_devices[0]);
+
+    VmaAllocatorCreateInfo alloc_create_info = {
+        .instance = instance,
+        .device = device->getHandle().as<VkDevice>(),
+        .physicalDevice = physical_devices[0]
+    };
+
+    const auto alloc = [&]()
+    {
+        VmaAllocator alloc;
+        const auto err = vmaCreateAllocator(&alloc_create_info, &alloc);
+        MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating allocator: " << err);
+        return alloc;
+    }();
+    
+    allocator = alloc;
 }
 
 Instance::~Instance()
 {
     if (handle)
     {
+        vmaDestroyAllocator(static_cast<VmaAllocator>(allocator));
+        allocator = nullptr;
         device.reset();
         vkDestroyInstance(handle.as<VkInstance>(), nullptr);
         handle = nullptr;

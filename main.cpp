@@ -6,22 +6,41 @@
 #define SOURCE_DIR "."
 #endif
 
+struct Vertex
+{
+    struct 
+    {
+        float x, y, z;
+    } position;
+    struct 
+    {
+        float r, g, b, a;
+    } color;
+};
+
 int main()
 {
     using namespace mn::Graphics;
 
     auto window = Window::fromLuaScript("window.lua");
 
-    /*
-    Pipeline pipeline;
-    pipeline.addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex);
-    pipeline.addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment);
-    pipeline.build();*/
-
     auto pipeline = PipelineBuilder().createLayout()
         .addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex)
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
+        .setBackfaceCull(false)
         .build();
+
+    auto vertexBuffer = std::make_shared<TypeBuffer<Vertex>>();
+    vertexBuffer->resize(3);
+    vertexBuffer->at(0) = Vertex {
+        .position = { 0, 0, 0 }
+    };
+    vertexBuffer->at(1) = Vertex {
+        .position = { 1, 0, 0 }
+    };
+    vertexBuffer->at(2) = Vertex {
+        .position = { 1, 1, 0 }
+    };
 
     uint32_t frameCount = 0;
 
@@ -37,8 +56,11 @@ int main()
 
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
+        frame.draw(pipeline, vertexBuffer);
         window.endFrame(frame);
 
         frameCount++;
     }
+
+    window.finishWork();
 }

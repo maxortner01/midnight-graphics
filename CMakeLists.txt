@@ -4,6 +4,8 @@ project(main C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
+add_subdirectory(extern/VMA)
+
 find_package(Vulkan REQUIRED)
 get_filename_component(VULKAN_PATH ${Vulkan_LIBRARIES} DIRECTORY)
 
@@ -28,10 +30,12 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/RenderFrame.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
 
     ${SPIRV_REFLECT}
 )
-target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} simple-lua)
+target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
 target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/midnight ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
 
 target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")

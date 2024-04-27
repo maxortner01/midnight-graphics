@@ -5,6 +5,8 @@
 #include <Graphics/Backend/Command.hpp>
 #include <Graphics/Backend/Sync.hpp>
 
+#include "RenderFrame.hpp"
+
 namespace mn::Graphics
 {
     struct FrameData
@@ -16,23 +18,6 @@ namespace mn::Graphics
 
         void create();
         void destroy();
-    };
-
-    struct Window;
-
-    struct RenderFrame
-    {
-        friend struct Window;
-
-        const uint32_t image_index;
-        const mn::handle_t image;
-
-        void clear(std::tuple<float, float, float> color) const;
-
-    private:
-        RenderFrame(uint32_t i, mn::handle_t im) : image_index(i), image(im) { }
-
-        std::shared_ptr<FrameData> frame_data;
     };
 
     struct Window
@@ -53,6 +38,8 @@ namespace mn::Graphics
         void endFrame(RenderFrame& rf) const;
 
         bool shouldClose() const { return _close; }
+
+        void finishWork() const;
 
     private:
         uint32_t next_image_index() const;

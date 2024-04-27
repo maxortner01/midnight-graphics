@@ -24,6 +24,8 @@ namespace mn::Graphics::Backend
         mn::handle_t createSurface(Handle<Window> window) const;
         void destroySurface(mn::handle_t surface) const;
         
+        auto getAllocator()  const { return allocator; }
+
         const std::unique_ptr<Device>& getDevice() const
         {
             return device;
@@ -34,6 +36,7 @@ namespace mn::Graphics::Backend
         ~Instance();
 
         Handle<Instance> handle;
+        mn::handle_t allocator;
 
         std::unique_ptr<Device> device;
     };
