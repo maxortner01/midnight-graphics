@@ -13,6 +13,8 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 
+#include <spirv_reflect.h>
+
 namespace mn::Graphics
 {
 
@@ -80,42 +82,43 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
     MIDNIGHT_ASSERT(handle, "Shader creation failed");
 
     this->type = type;
-}
 
-/*
-void Pipeline::addShader(std::filesystem::path path, ShaderType type)
-{
-    MIDNIGHT_ASSERT(!modules.count(type), "Shader already created for this pipeline!");
-    modules.insert(std::pair(type, std::make_unique<Shader>(path, type)));
-}
-
-void Pipeline::build()
-{
-    std::vector<VkPipelineShaderStageCreateInfo> stages;
-    stages.reserve(modules.size());
-    for (const auto& p : modules)
+    if (type == ShaderType::Vertex)
     {
-        VkShaderStageFlagBits stage;
-        switch (p.first)
+        // Shader reflection
+        SpvReflectShaderModule shader_mod;
+        const auto result = spvReflectCreateShaderModule(data.size() * sizeof(uint32_t), data.data(), &shader_mod);
+        MIDNIGHT_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS, "Error during shader reflection");
+        
+        uint32_t input_count;
+        spvReflectEnumerateInputVariables(&shader_mod, &input_count, nullptr);
+        std::vector<SpvReflectInterfaceVariable*> vars(input_count);
+        spvReflectEnumerateInputVariables(&shader_mod, &input_count, vars.data());
+
+        attributes.emplace(std::vector<Attribute>());
+        for (const auto* var : vars)
         {
-        case ShaderType::Vertex:   stage = VK_SHADER_STAGE_VERTEX_BIT;   break;
-        case ShaderType::Fragment: stage = VK_SHADER_STAGE_FRAGMENT_BIT; break;
-        case ShaderType::Compute:  stage = VK_SHADER_STAGE_COMPUTE_BIT;  break;
-        default: MIDNIGHT_ASSERT(false, "Shader type can not be 'none'");
+            uint32_t member_count = 0;
+            if (var->format >= 98 && var->format <= 100)
+                member_count = 1;
+            if (var->format >= 101 && var->format <= 103)
+                member_count = 2;
+            if (var->format >= 104 && var->format <= 106)
+                member_count = 3;
+            if (var->format >= 107 && var->format <= 109)
+                member_count = 4;
+
+            attributes->push_back(Attribute {
+                .element_count = member_count,
+                .format = static_cast<uint32_t>(var->format),
+                .binding = 0,
+                .element_size = sizeof(float)
+            });
         }
 
-        stages.push_back(VkPipelineShaderStageCreateInfo {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .pNext = nullptr,
-            .pName = "",
-            .flags = 0,
-            .pSpecializationInfo = nullptr,
-            .stage = stage,
-            .module = p.second->handle.as<VkShaderModule>()
-        });
+        spvReflectDestroyShaderModule(&shader_mod);
     }
 }
-*/
 
 PipelineLayout::PipelineLayout() : 
     ObjectHandle([]()
@@ -407,10 +410,50 @@ Pipeline PipelineBuilder::build() const
         .depthAttachmentFormat = d_format
     };
 
+    //VkVertexInputAttributeDescription desc;
+    //desc.format = VK_FORMAT_
+
     VkPipelineVertexInputStateCreateInfo input_state = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .pNext = nullptr
+        .pNext = nullptr,
+        .flags = 0
     };
+
+    std::vector<VkVertexInputAttributeDescription> attribs;
+    VkVertexInputBindingDescription binding;
+
+    if (modules.count(ShaderType::Vertex))
+    {
+        const auto& shader = modules.at(ShaderType::Vertex);
+        const auto& attributes = shader->getAttributes();  
+        
+
+        uint32_t offset = 0;
+        uint32_t location = 0;
+        for (const auto& attrib : attributes)
+        {
+            attribs.push_back(VkVertexInputAttributeDescription {
+                .binding  = static_cast<uint32_t>(attrib.binding),
+                .format   = static_cast<VkFormat>(attrib.format),
+                .location = location,
+                .offset   = offset
+            });
+            location++;
+            offset += attrib.element_size * attrib.element_count;
+        }
+
+        input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribs.size());
+        input_state.pVertexAttributeDescriptions = attribs.data();
+
+        binding = VkVertexInputBindingDescription {
+            .binding = 0,
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            .stride = offset
+        };
+
+        input_state.vertexBindingDescriptionCount = 1;
+        input_state.pVertexBindingDescriptions = &binding;
+    }
 
     VkPipelineViewportStateCreateInfo viewport_state = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(main CXX)
+project(main C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -15,6 +15,10 @@ set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
 add_subdirectory(extern/SDL)
 add_subdirectory(extern/simple-lua)
 
+set(SPIRV_REFLECT
+    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
+    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
+
 add_executable(main 
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
@@ -24,8 +28,10 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp
+
+    ${SPIRV_REFLECT}
 )
 target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} simple-lua)
-target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/midnight)
+target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/midnight ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
 
 target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")

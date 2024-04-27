@@ -29,6 +29,12 @@ namespace mn::Graphics
     {
         friend struct Pipeline;
 
+        struct Attribute
+        {
+            uint32_t element_count, element_size, format;
+            uint8_t binding = 0;
+        };
+
         Shader();
         Shader(std::filesystem::path path, ShaderType type);
         ~Shader();
@@ -38,9 +44,12 @@ namespace mn::Graphics
         void fromSpv(const std::vector<uint32_t>& contents, ShaderType type);
 
         auto getType() const { return type; }
-    
+
+        const auto& getAttributes() const { MIDNIGHT_ASSERT(type == ShaderType::Vertex, "Attributes only for vertex shader"); return *attributes; }
+
     private:
         ShaderType type;
+        std::optional<std::vector<Attribute>> attributes;
     };
 
     struct PipelineLayout : ObjectHandle<PipelineLayout>

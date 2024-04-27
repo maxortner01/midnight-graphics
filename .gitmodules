@@ -4,3 +4,9 @@
 [submodule "extern/simple-lua"]
 	path = extern/simple-lua
 	url = https://github.com/maxortner01/simple-lua
+[submodule "extern/spirv-cross"]
+	path = extern/spirv-cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross
+[submodule "extern/spirv-reflect"]
+	path = extern/spirv-reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect
