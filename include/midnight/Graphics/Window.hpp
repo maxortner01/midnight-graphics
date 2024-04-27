@@ -7,6 +7,11 @@
 
 namespace mn::Graphics
 {
+    struct RenderFrame
+    {
+        const uint32_t image_index;
+    };
+
     struct Window
     {
         Window(const std::string& config_file = "");
@@ -20,9 +25,9 @@ namespace mn::Graphics
 
         void close();
         
-        uint32_t startFrame() const;
-        void testDisplay(uint32_t index) const;
-        void endFrame(uint32_t image) const;
+        RenderFrame startFrame() const;
+        void testDisplay(RenderFrame& rf) const;
+        void endFrame(RenderFrame& rf) const;
 
         bool shouldClose() const { return _close; }
 

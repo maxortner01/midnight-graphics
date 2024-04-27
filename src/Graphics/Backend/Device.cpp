@@ -88,10 +88,16 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         return enabledExtensions;
     }(static_cast<VkPhysicalDevice>(p_device));
 
-    VkPhysicalDeviceSynchronization2Features sync = {
+    VkPhysicalDeviceDynamicRenderingFeatures dynamic_render = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
         .pNext = nullptr,
+        .dynamicRendering = VK_TRUE
+    };
+
+    VkPhysicalDeviceSynchronization2Features sync = {
+        .pNext = &dynamic_render,
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-        .synchronization2 = true
+        .synchronization2 = VK_TRUE
     };
 
     VkDeviceCreateInfo create_info = {

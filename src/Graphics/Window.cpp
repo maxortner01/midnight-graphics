@@ -103,7 +103,7 @@ void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layo
     ((PFN_vkCmdPipelineBarrier2KHR)(pVkCmdPipelineBarrier2KHR ))(cmd, &dep_info);
 };
 
-uint32_t Window::startFrame() const
+RenderFrame Window::startFrame() const
 {
     frame_data.render_fence->wait();
     frame_data.render_fence->reset();
@@ -118,10 +118,12 @@ uint32_t Window::startFrame() const
     auto _cmd   = frame_data.command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-    return n_image;
+    return RenderFrame {
+        .image_index = n_image
+    };
 }
 
-void Window::testDisplay(uint32_t index) const
+void Window::testDisplay(RenderFrame& rf) const
 {
     static int _frameNumber = 0;
 
@@ -143,7 +145,7 @@ void Window::testDisplay(uint32_t index) const
 	//clear image
 	vkCmdClearColorImage(
         frame_data.command_buffer->getHandle().as<VkCommandBuffer>(), 
-        static_cast<VkImage>(images[index]), 
+        static_cast<VkImage>(images[rf.image_index]), 
         VK_IMAGE_LAYOUT_GENERAL, 
         &clearValue, 
         1, 
@@ -153,9 +155,11 @@ void Window::testDisplay(uint32_t index) const
 
 }
 
-void Window::endFrame(uint32_t image) const
+void Window::endFrame(RenderFrame& rf) const
 {
-    auto _image = static_cast<VkImage>(images[image]);
+    // All this code essentially copied...
+    
+    auto _image = static_cast<VkImage>(images[rf.image_index]);
     auto _cmd   = frame_data.command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     frame_data.command_buffer->end();
@@ -228,7 +232,7 @@ void Window::endFrame(uint32_t image) const
 	presentInfo.pWaitSemaphores = &_sema;
 	presentInfo.waitSemaphoreCount = 1;
 
-	presentInfo.pImageIndices = &image;
+	presentInfo.pImageIndices = &rf.image_index;
 
 	const auto err = vkQueuePresentKHR(static_cast<VkQueue>(device->getGraphicsQueue().handle), &presentInfo);
 }
