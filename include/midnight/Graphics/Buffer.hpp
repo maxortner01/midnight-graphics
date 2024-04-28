@@ -13,14 +13,17 @@ namespace mn::Graphics
         Buffer(const Buffer&) = delete;
         virtual ~Buffer() { rawFree(); }
 
-        virtual uint32_t getSize() const = 0;
+        virtual uint32_t getSize() const { return 0; };
         virtual uint32_t vertices() const { return 0; }
+
+        void allocateBytes(std::size_t bytes) { rawResize(bytes); }
+        auto* rawData() const { return reinterpret_cast<std::byte*>(_data); }
+        auto allocated() const { return _size; }
 
     protected:
         void  rawResize(std::size_t newsize);
         void  rawFree();
         auto  rawSize() const { return _size; }
-        auto* rawData() const { return reinterpret_cast<std::byte*>(_data); }
 
     private:
         Handle<Buffer> allocation;

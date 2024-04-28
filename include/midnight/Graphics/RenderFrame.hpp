@@ -22,7 +22,7 @@ namespace mn::Graphics
         void endRender();
 
         void clear(std::tuple<float, float, float> color) const;
-        void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
+        void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index = 0) const;
 
     private:
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }

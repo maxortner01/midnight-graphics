@@ -5,7 +5,14 @@ layout (location = 1) in vec4 color;
 
 layout (location = 0) out vec4 fragColor;
 
+layout (binding = 0) uniform UniformObject
+{
+    mat4 proj;
+    mat4 view;
+    mat4 model;
+} ubo;
+
 void main() {
-    gl_Position = vec4(position, 1.0);
+    gl_Position = ubo.model * vec4(position, 1.0);
     fragColor = color;
 }

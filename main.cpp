@@ -18,18 +18,36 @@ struct Vertex
     } color;
 };
 
+template<typename T>
+struct Mat4
+{
+    T m[4][4] = {0};
+};
+
+struct Uniform
+{
+    Mat4<float> proj, view, model;
+};
+
 int main()
 {
     using namespace mn::Graphics;
 
     auto window = Window::fromLuaScript("window.lua");
 
-    auto pipeline = PipelineBuilder().createLayout()
+    auto pipeline = PipelineBuilder()
         .addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex)
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
         .setColorFormat(44)
         .setBackfaceCull(false)
+        .setDescriptorSize(sizeof(Uniform))
         .build();
+
+    auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
+    uniform.model.m[0][0] = 0.5f;
+    uniform.model.m[1][1] = 1;
+    uniform.model.m[2][2] = 1;
+    uniform.model.m[3][3] = 1;
 
     auto vertexBuffer = std::make_shared<TypeBuffer<Vertex>>();
     vertexBuffer->resize(3);
@@ -54,6 +72,14 @@ int main()
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
                 window.close();
         }
+
+        window.finishWork();
+        vertexBuffer->at(1) = Vertex {
+            .position = { cos(frameCount / 100.f), 0, 0 }
+        };
+        vertexBuffer->at(2) = Vertex {
+            .position = { cos(frameCount / 100.f), sin(frameCount / 100.f), 0 }
+        };
 
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
