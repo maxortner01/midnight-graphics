@@ -33,6 +33,7 @@ add_executable(main
     ${CMAKE_SOURCE_DIR}/src/Graphics/RenderFrame.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Image.cpp
+    ${CMAKE_SOURCE_DIR}/src/Graphics/Model.cpp
 
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 

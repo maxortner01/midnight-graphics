@@ -139,11 +139,13 @@ namespace mn::Math
 
     template<typename T>
     using Vec2 = Vec<2, T>;
-
     using Vec2f = Vec2<float>;
 
     template<typename T>
     using Vec3 = Vec<3, T>;
-
     using Vec3f = Vec3<float>;
+
+    template<typename T>
+    using Vec4 = Vec<4, T>;
+    using Vec4f = Vec4<float>;
 }

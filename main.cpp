@@ -18,20 +18,16 @@ struct Vertex
     } color;
 };
 
-template<typename T>
-struct Mat4
-{
-    T m[4][4] = {0};
-};
-
 struct Uniform
 {
-    Mat4<float> proj, view, model;
+    mn::Math::Mat4<float> proj, view, model;
 };
 
 int main()
 {
+    using namespace mn;
     using namespace mn::Graphics;
+
 
     auto window = Window::fromLuaScript("window.lua");
 
@@ -40,39 +36,10 @@ int main()
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
         .setColorFormat(44)
         .setBackfaceCull(false)
-        .setDescriptorSize(sizeof(Uniform)) // should infer this from the layout, or set per layout
+        .setDescriptorSize(sizeof(Uniform)) // should infer this from the layout, or specify set byte size per layout
         .build();
 
-    auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
-    uniform.model.m[0][0] = 0.5f;
-    uniform.model.m[1][1] = 1;
-    uniform.model.m[2][2] = 1;
-    uniform.model.m[3][3] = 1;
-
-    auto vertexBuffer = std::make_shared<TypeBuffer<Vertex>>();
-    vertexBuffer->resize(4);
-    vertexBuffer->at(0) = Vertex {
-        .position = { 0, 0, 0 }
-    };
-    vertexBuffer->at(1) = Vertex {
-        .position = { 1, 0, 0 }
-    };
-    vertexBuffer->at(2) = Vertex {
-        .position = { 1, 1, 0 }
-    };
-    vertexBuffer->at(3) = Vertex {
-        .position = { 0, 1, 0 }
-    };
-
-    auto indexBuffer = std::make_shared<TypeBuffer<uint32_t>>();
-    indexBuffer->resize(6);
-    indexBuffer->at(0) = 0;
-    indexBuffer->at(1) = 1;
-    indexBuffer->at(2) = 2;
-
-    indexBuffer->at(3) = 0;
-    indexBuffer->at(4) = 2;
-    indexBuffer->at(5) = 3;
+    auto model = Model::fromLua(SOURCE_DIR "/models/plane.lua");
 
     uint32_t frameCount = 0;
 
@@ -88,12 +55,14 @@ int main()
 
         window.finishWork();
 
+        auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
+        uniform.model = Math::rotation<float>({ Math::Angle::degrees(0), Math::Angle::degrees(0), Math::Angle::degrees(frameCount / 10.0) });
+
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
         
         frame.startRender();
-        //frame.draw(pipeline, vertexBuffer);
-        frame.drawIndexed(pipeline, vertexBuffer, indexBuffer);
+        frame.draw(pipeline, model);
         frame.endRender();
 
         window.endFrame(frame);

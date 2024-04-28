@@ -80,7 +80,7 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
 
 void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index) const
 {
-    MIDNIGHT_ASSERT(buffer->getSize() == pipeline.getBindingStride(), "Buffer stride is not expected by pipeline");
+    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
 
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
@@ -108,9 +108,19 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer,
         0);
 }
 
+void RenderFrame::draw(const Pipeline& pipeline, const Model& model, uint32_t desc_index) const
+{
+    if (!model.vertexCount()) return;
+
+    if (model.indexCount())
+        drawIndexed(pipeline, model.vertex, model.index, desc_index);
+    else
+        draw(pipeline, model.vertex, desc_index);
+}
+
 void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index) const
 {
-    MIDNIGHT_ASSERT(buffer->getSize() == pipeline.getBindingStride(), "Buffer stride is not expected by pipeline");
+    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
 
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
