@@ -108,4 +108,41 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer,
         0);
 }
 
+void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index) const
+{
+    MIDNIGHT_ASSERT(buffer->getSize() == pipeline.getBindingStride(), "Buffer stride is not expected by pipeline");
+
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    vkCmdBindPipeline(
+        cmdBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline.getHandle().as<VkPipeline>());
+
+    pipeline.bindDescriptorSet(desc_index, frame_data->command_buffer);
+
+    const auto buff = buffer->getHandle().as<VkBuffer>();
+    VkDeviceSize off = 0;
+    vkCmdBindVertexBuffers(
+        cmdBuffer,
+        0,
+        1,
+        &buff,
+        &off);
+
+    vkCmdBindIndexBuffer(
+        cmdBuffer,
+        indices->getHandle().as<VkBuffer>(),
+        0,
+        VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(
+        cmdBuffer,
+        indices->allocated() / sizeof(uint32_t),
+        1,
+        0, 
+        0, 
+        0);
+}
+
 }
