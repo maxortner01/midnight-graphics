@@ -6,3 +6,6 @@
 #include "./Graphics/Window.hpp"
 #include "./Graphics/Pipeline.hpp"
 #include "./Graphics/Buffer.hpp"
+
+#include "./Math/Vector.hpp"
+#include "./Math/Matrix.hpp"

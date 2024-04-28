@@ -34,6 +34,8 @@ add_executable(main
     ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Image.cpp
 
+    ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
+
     ${SPIRV_REFLECT}
 )
 target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
