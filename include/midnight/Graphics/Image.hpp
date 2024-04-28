@@ -13,9 +13,12 @@ namespace mn::Graphics
         auto format() const { return _format; }
 
         auto getColorImageView() const { return color_view; }
+        auto getDepthImageView() const { return depth_view; }
+        auto getDepthImage() const { return depth_image; }
 
     private:
-        Handle<Image> color_view, depth_view;
+        mn::handle_t depth_allocation;
+        Handle<Image> color_view, depth_view, depth_image;
         uint32_t _format;
         std::pair<uint32_t, uint32_t> _size;
     };

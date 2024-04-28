@@ -140,6 +140,7 @@ namespace mn::Math
     template<typename T>
     using Vec2 = Vec<2, T>;
     using Vec2f = Vec2<float>;
+    using Vec2u = Vec2<uint32_t>;
 
     template<typename T>
     using Vec3 = Vec<3, T>;

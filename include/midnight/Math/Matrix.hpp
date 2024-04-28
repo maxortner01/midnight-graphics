@@ -146,6 +146,18 @@ namespace mn::Math
     }
 
     template<typename T>
+    static Mat<4, 4, T> translation(const Vec3<T>& pos)
+    {
+        auto m = identity<4, T>();
+
+        m.m[3][0] = x(pos);
+        m.m[3][1] = y(pos);
+        m.m[3][2] = z(pos);
+
+        return m;
+    }
+
+    template<typename T>
     using Mat3 = Mat<3, 3, T>;
 
     template<typename T>

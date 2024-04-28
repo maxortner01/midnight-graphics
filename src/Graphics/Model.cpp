@@ -56,6 +56,19 @@ Model Model::fromLua(const std::string& lua_file)
         });
     });
 
+    model->try_get<SL::Table>("colors", [&](const SL::Table& colors)
+    {
+        colors.each<SL::Table>([&](uint32_t i, const SL::Table& color)
+        {
+            f.vertices[i - 1].color = { 
+                color.get<SL::Number>("1"),
+                color.get<SL::Number>("2"),
+                color.get<SL::Number>("3"),
+                color.get<SL::Number>("4") 
+            };
+        });
+    });
+
     model->try_get<SL::Table>("indices", [&](const SL::Table& indices)
     {
         indices.each<SL::Number>([&](uint32_t i, const SL::Number& index)

@@ -16,8 +16,23 @@ void RenderFrame::startRender()
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
         .imageView = image->getColorImageView().as<VkImageView>(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
+
+    std::optional<VkRenderingAttachmentInfo> depth_attach;
+
+    if (image->getDepthImageView())
+    {
+        depth_attach.emplace(VkRenderingAttachmentInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
+            .imageView = image->getDepthImageView().as<VkImageView>(),
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue.depthStencil.depth = 1
+        });
+    }
 
     VkRenderingInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -26,6 +41,7 @@ void RenderFrame::startRender()
         .layerCount = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_attach,
+        .pDepthAttachment = ( depth_attach.has_value() ? &(*depth_attach) : nullptr ),
         .renderArea = { 0, 0, image->size().first, image->size().second }
     };
 
@@ -57,7 +73,7 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
     VkClearColorValue clearValue;
 	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), 1.0f } };
 
-	VkImageSubresourceRange clearRange = [](VkImageAspectFlags aspectMask)
+    const auto aspect_bits = [](VkImageAspectFlags aspectMask)
     {
         return VkImageSubresourceRange {
             .aspectMask = aspectMask,
@@ -66,7 +82,13 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
             .baseArrayLayer = 0,
             .layerCount = VK_REMAINING_ARRAY_LAYERS
         };
-    }(VK_IMAGE_ASPECT_COLOR_BIT);
+    };
+
+    const auto colorRange = aspect_bits(VK_IMAGE_ASPECT_COLOR_BIT);
+    const auto dsRange = aspect_bits(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+    VkClearDepthStencilValue depthvalue;
+    depthvalue.depth = 0;
+    depthvalue.stencil = 0;
 
 	//clear image
 	vkCmdClearColorImage(
@@ -75,7 +97,16 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
         VK_IMAGE_LAYOUT_GENERAL, 
         &clearValue, 
         1, 
-        &clearRange);
+        &colorRange);
+
+    /*
+    vkCmdClearDepthStencilImage(
+        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
+        image->getDepthImage().as<VkImage>(), 
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 
+        &depthvalue, 
+        1, 
+        &dsRange);*/
 }
 
 void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index) const

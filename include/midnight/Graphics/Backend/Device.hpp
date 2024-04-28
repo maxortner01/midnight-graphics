@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Def.hpp>
+#include <Math.hpp>
 
 namespace mn::Graphics
 {
@@ -40,10 +41,10 @@ namespace mn::Graphics::Backend
         std::vector<mn::handle_t> getSwapchainImages(mn::handle_t swapchain) const;
         void destroySwapchain(mn::handle_t swapchain) const;
 
-        Handle<Image> createImage() const;
-        void destroyImage(Handle<Image> image) const;
+        std::pair<Handle<Image>, mn::handle_t> createImage(const Math::Vec2u& size, uint32_t format, bool depth = false) const;
+        void destroyImage(Handle<Image> image, mn::handle_t alloc) const;
 
-        mn::handle_t createImageView(Handle<Image> image) const;
+        mn::handle_t createImageView(Handle<Image> image, uint32_t format, bool depth = false) const;
         void destroyImageView(mn::handle_t image_view) const;
 
         Handle<CommandPool> createCommandPool() const;

@@ -22,11 +22,13 @@ int main()
         .addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex)
         .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
         .setColorFormat(44)
+        .setDepthTesting(true)
+        .setDepthFormat(130)
         .setBackfaceCull(false)
         .setDescriptorSize(sizeof(Uniform)) // should infer this from the layout, or specify set byte size per layout
         .build();
 
-    auto model = Model::fromLua(SOURCE_DIR "/models/plane.lua");
+    auto model = Model::fromLua(SOURCE_DIR "/models/cube.lua");
 
     {
         auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
@@ -51,10 +53,10 @@ int main()
 
         auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
         uniform.model = Math::rotation<float>({ 
-            Math::Angle::degrees(0), 
-            Math::Angle::degrees(0), 
+            Math::Angle::degrees(rotation / 7.0), 
+            Math::Angle::degrees(rotation / 2.0), 
             Math::Angle::degrees(rotation) 
-        });
+        }) * Math::translation(Math::Vec3<double>{ 0.0, 0.0, -5.0 });
 
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
@@ -69,7 +71,7 @@ int main()
         window.setTitle((std::stringstream() << std::fixed << std::setprecision(2) << (1.0 / dt.count()) << " fps").str());
         now = new_now;
 
-        rotation += 10.0 * dt.count();
+        rotation += 85.0 * dt.count();
 
         frameCount++;
     }

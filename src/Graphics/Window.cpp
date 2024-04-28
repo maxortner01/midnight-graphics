@@ -63,7 +63,7 @@ Window::Window(const std::string& config_file)
 
     const auto [ s, _images, format, size ] = device->createSwapchain(handle, surface);
     for (const auto& image : _images)
-        images.emplace_back(std::make_shared<Image>(image, format, size, false));
+        images.emplace_back(std::make_shared<Image>(image, format, size, true));
 
     swapchain = s;
     frame_data = std::make_shared<FrameData>();
@@ -95,7 +95,7 @@ void Window::close()
 
 void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
 {
-    VkImageAspectFlags aspectMask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageAspectFlags aspectMask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     VkImageMemoryBarrier2 image_barrier = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
         .pNext = nullptr,
@@ -144,6 +144,7 @@ RenderFrame Window::startFrame() const
     auto _image = images[n_image]->getHandle().as<VkImage>();
     auto _cmd   = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+    transition_image(_cmd, images[n_image]->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     RenderFrame frame(n_image, images[n_image]);
     frame.frame_data = frame_data;

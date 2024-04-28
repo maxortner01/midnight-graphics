@@ -6,6 +6,8 @@
 #include <Graphics/Image.hpp>
 
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
@@ -264,23 +266,50 @@ void Device::destroySwapchain(handle_t swapchain) const
     vkDestroySwapchainKHR(handle.as<VkDevice>(), static_cast<VkSwapchainKHR>(swapchain), nullptr);
 }
 
-Handle<Image> Device::createImage() const
+std::pair<Handle<Image>, mn::handle_t> Device::createImage(const Math::Vec2u& size, uint32_t format, bool depth) const
 {
-    //vkCreateImage(handle.as<VkDevice>(), )
+    VkImageCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .format = static_cast<VkFormat>(format),
+        .usage = static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
+        .extent = { .depth = 1, .width = Math::x(size), .height = Math::y(size) },
+        .imageType = VK_IMAGE_TYPE_2D,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL
+    };
+
+    VmaAllocationCreateInfo alloc_create_info = {
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    }; 
+
+    const auto allocator = static_cast<VmaAllocator>(Instance::get()->getAllocator());
+
+    VkImage _image;
+    VmaAllocation _alloc;
+    VmaAllocationInfo _alloc_info;
+    const auto err = vmaCreateImage(allocator, &create_info, &alloc_create_info, &_image, &_alloc, &_alloc_info);
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating image: " << err);
+    return std::pair(Handle<Image>(_image), static_cast<mn::handle_t>(_alloc));
 }
 
-void Device::destroyImage(Handle<Image> image) const
+void Device::destroyImage(Handle<Image> image, mn::handle_t alloc) const
 {
-
+    const auto allocator = static_cast<VmaAllocator>(Instance::get()->getAllocator());
+    vmaDestroyImage(allocator, image.as<VkImage>(), static_cast<VmaAllocation>(alloc));
 }
 
-mn::handle_t Device::createImageView(Handle<Image> image) const
+mn::handle_t Device::createImageView(Handle<Image> image, uint32_t format, bool depth) const
 {
     VkImageViewCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .format = VK_FORMAT_B8G8R8A8_UNORM,
+        .format = static_cast<VkFormat>(format),
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .image = image.as<VkImage>(),
         .components = {
@@ -290,7 +319,7 @@ mn::handle_t Device::createImageView(Handle<Image> image) const
             .a = VK_COMPONENT_SWIZZLE_IDENTITY
         },
         .subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = (depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT),
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
