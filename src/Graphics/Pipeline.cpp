@@ -13,6 +13,8 @@
 
 #include <shaderc/shaderc.hpp>
 
+#include <SL/Lua.hpp>
+
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 
@@ -358,6 +360,28 @@ Pipeline::~Pipeline()
     }
 }
 
+PipelineBuilder PipelineBuilder::fromLua(const std::string& source_dir, const std::string& script)
+{
+    SL::Runtime runtime(source_dir + script);
+    const auto res = runtime.getGlobal<SL::Table>("Pipeline");
+    MIDNIGHT_ASSERT(res, "Error loading pipeline from lua script: Global not found");
+
+    PipelineBuilder builder;
+
+    res->try_get<SL::Table>("shaders", [&](const SL::Table& shaders)
+    {
+        shaders.try_get<SL::String>("vertex",   [&](const SL::String& dir) { builder.addShader(source_dir + dir, ShaderType::Vertex);   });
+        shaders.try_get<SL::String>("fragment", [&](const SL::String& dir) { builder.addShader(source_dir + dir, ShaderType::Fragment); });
+    });
+
+    res->try_get<SL::Number>("colorFormat", [&](const SL::Number& format){ builder.setColorFormat(static_cast<uint32_t>(format)); });
+    res->try_get<SL::Number>("depthFormat", [&](const SL::Number& format){ builder.setDepthFormat(static_cast<uint32_t>(format)); });
+    res->try_get<SL::Boolean>("depthTesting",    [&](const SL::Boolean& _bool){ builder.setDepthTesting(_bool); });
+    res->try_get<SL::Boolean>("backfaceCulling", [&](const SL::Boolean& _bool){ builder.setBackfaceCull(_bool); });
+
+    return builder;
+}
+
 void Pipeline::bindDescriptorSet(uint32_t index, const std::unique_ptr<Backend::CommandBuffer>& cmd) const
 {
     descriptor_set->bind(index, cmd, layout);
@@ -542,6 +566,7 @@ Pipeline PipelineBuilder::build() const
         .logicOp = VK_LOGIC_OP_COPY
     };
 
+    std::cout << "DEPTH: " << depth << "\n";
     const auto depth_stencil = ( depth ? 
         []()
         {

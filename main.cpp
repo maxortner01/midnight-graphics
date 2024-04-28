@@ -18,14 +18,8 @@ int main()
 
     auto window = Window::fromLuaScript("window.lua");
 
-    auto pipeline = PipelineBuilder()
-        .addShader(SOURCE_DIR "/shaders/vertex.glsl",   ShaderType::Vertex)
-        .addShader(SOURCE_DIR "/shaders/fragment.glsl", ShaderType::Fragment)
-        .setColorFormat(44)
-        .setDepthTesting(true)
-        .setDepthFormat(130)
-        .setBackfaceCull(false)
-        .setDescriptorSize(sizeof(Uniform)) // should infer this from the layout, or specify set byte size per layout
+    auto pipeline = PipelineBuilder::fromLua(SOURCE_DIR, "/pipelines/main.lua")
+        .setDescriptorSize(sizeof(Uniform))
         .build();
 
     auto model = Model::fromLua(SOURCE_DIR "/models/cube.lua");

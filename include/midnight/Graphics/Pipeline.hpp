@@ -126,8 +126,8 @@ namespace mn::Graphics
 
     struct PipelineBuilder
     {
-        //PipelineBuilder& addLayout(const std::shared_ptr<PipelineLayout>& layout);
-        //PipelineBuilder& createLayout();
+        static PipelineBuilder fromLua(const std::string& source_dir, const std::string& script);
+
         PipelineBuilder& addShader(std::filesystem::path path, ShaderType type);
         PipelineBuilder& addShader(const std::shared_ptr<Shader>& shader);
         PipelineBuilder& setPolyMode(Polygon p);
