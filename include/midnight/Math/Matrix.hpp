@@ -127,6 +127,24 @@ namespace mn::Math
         return rotationZ<T>(z(angles)) * rotationY<T>(y(angles)) * rotationX<T>(x(angles));
     }
 
+    // z_clip is { near, far }
+    template<typename T>
+    static Mat<4, 4, T> perspective(const T& aspect, const Angle& FOV, const Vec2<T>& z_clip)
+    {
+        const auto& [ near, far ] = std::tie(x(z_clip), y(z_clip));
+        const auto _itan = 1.0 / tan( FOV.asRadians() / 2.0 );
+
+        Mat<4, 4, T> m;
+
+        m.m[0][0] = _itan / aspect;
+        m.m[1][1] = _itan;
+        m.m[2][2] = -1.0 * (far + near) / (far - near);
+        m.m[2][3] = -1;
+        m.m[3][2] = -2.0 * (far * near) / (far - near);
+
+        return m;
+    }
+
     template<typename T>
     using Mat3 = Mat<3, 3, T>;
 

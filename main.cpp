@@ -6,18 +6,6 @@
 #define SOURCE_DIR "."
 #endif
 
-struct Vertex
-{
-    struct 
-    {
-        float x, y, z;
-    } position;
-    struct 
-    {
-        float r, g, b, a;
-    } color;
-};
-
 struct Uniform
 {
     mn::Math::Mat4<float> proj, view, model;
@@ -27,7 +15,6 @@ int main()
 {
     using namespace mn;
     using namespace mn::Graphics;
-
 
     auto window = Window::fromLuaScript("window.lua");
 
@@ -41,9 +28,16 @@ int main()
 
     auto model = Model::fromLua(SOURCE_DIR "/models/plane.lua");
 
+    {
+        auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
+        uniform.proj = Math::perspective(1280.0 / 720.0, Math::Angle::degrees(75), { 0.1, 100.0 });
+    }
+
     uint32_t frameCount = 0;
+    double rotation = 0.0;
 
     // Main loop
+    auto now = std::chrono::high_resolution_clock::now();
     while (!window.shouldClose())
     {
         SDL_Event event;
@@ -56,7 +50,11 @@ int main()
         window.finishWork();
 
         auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
-        uniform.model = Math::rotation<float>({ Math::Angle::degrees(0), Math::Angle::degrees(0), Math::Angle::degrees(frameCount / 10.0) });
+        uniform.model = Math::rotation<float>({ 
+            Math::Angle::degrees(0), 
+            Math::Angle::degrees(0), 
+            Math::Angle::degrees(rotation) 
+        });
 
         auto frame = window.startFrame();
         frame.clear({ 1.f, (sin(frameCount / 100.f) + 1.f) * 0.5f, 0.f });
@@ -66,6 +64,12 @@ int main()
         frame.endRender();
 
         window.endFrame(frame);
+        const auto new_now = std::chrono::high_resolution_clock::now();
+        const std::chrono::duration<double, std::chrono::seconds::period> dt = new_now - now;
+        window.setTitle((std::stringstream() << std::fixed << std::setprecision(2) << (1.0 / dt.count()) << " fps").str());
+        now = new_now;
+
+        rotation += 10.0 * dt.count();
 
         frameCount++;
     }

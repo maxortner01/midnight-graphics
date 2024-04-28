@@ -233,6 +233,11 @@ void Window::endFrame(RenderFrame& rf) const
 	const auto err = vkQueuePresentKHR(static_cast<VkQueue>(device->getGraphicsQueue().handle), &presentInfo);
 }
 
+void Window::setTitle(const std::string& title) const
+{
+    SDL_SetWindowTitle(handle.as<SDL_Window*>(), title.c_str());
+}
+
 void Window::finishWork() const
 {
     auto instance = mn::Graphics::Backend::Instance::get();
