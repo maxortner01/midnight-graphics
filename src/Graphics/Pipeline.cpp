@@ -676,7 +676,8 @@ Pipeline PipelineBuilder::build() const
         .pNext = nullptr,
         .colorAttachmentCount = 1,
         .pColorAttachmentFormats = &c_format,
-        .depthAttachmentFormat = d_format
+        .depthAttachmentFormat = d_format,
+        .stencilAttachmentFormat = VK_FORMAT_D32_SFLOAT_S8_UINT
     };
 
     //VkVertexInputAttributeDescription desc;

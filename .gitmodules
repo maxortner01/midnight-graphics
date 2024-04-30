@@ -13,3 +13,6 @@
 [submodule "extern/VMA"]
 	path = extern/VMA
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "extern/SimplexNoise"]
+	path = extern/SimplexNoise
+	url = https://github.com/SRombauts/SimplexNoise
