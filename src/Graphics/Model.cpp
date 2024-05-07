@@ -14,6 +14,7 @@ Model Model::fromFrame(const Frame& frame)
     {
         m.vertex = std::make_shared<Buffer>();
         m.vertex->allocateBytes(frame.vertices.size() * sizeof(Vertex));
+
         std::memcpy(
             m.vertex->rawData(), 
             reinterpret_cast<const Vertex*>(&frame.vertices[0]), 
@@ -27,7 +28,7 @@ Model Model::fromFrame(const Frame& frame)
         std::memcpy(
             m.index->rawData(), 
             reinterpret_cast<const uint32_t*>(&frame.indices[0]), 
-            frame.indices.size() * sizeof(Vertex));
+            frame.indices.size() * sizeof(uint32_t));
     }
 
     return m;

@@ -14,7 +14,7 @@ namespace mn::Graphics
 
         struct Vertex
         {
-            mn::Math::Vec3f position;
+            mn::Math::Vec3f position, normal;
             mn::Math::Vec4f color;
         };
 

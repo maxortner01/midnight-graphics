@@ -103,9 +103,14 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         .synchronization2 = VK_TRUE
     };
 
+    VkPhysicalDeviceFeatures features = {
+        .fillModeNonSolid = VK_TRUE
+    };
+
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = &sync,
+        .pEnabledFeatures = &features,
         .flags = 0,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queue_create,

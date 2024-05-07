@@ -23,8 +23,11 @@ namespace mn::Graphics
         void endRender();
 
         void clear(std::tuple<float, float, float> color) const;
+        
         void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index = 0) const;
         void draw(const Pipeline& pipeline, const Model& model, uint32_t desc_index = 0) const;
+        void draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t desc_index = 0) const;
+
         void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index = 0) const;
 
     private:

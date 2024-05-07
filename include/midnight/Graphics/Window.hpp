@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Def.hpp>
+#include <Math.hpp>
 
 #include <Graphics/Backend/Command.hpp>
 #include <Graphics/Backend/Sync.hpp>
@@ -32,6 +33,8 @@ namespace mn::Graphics
         ~Window();
 
         void close();
+
+        auto size() const { return _size; }
         
         RenderFrame startFrame() const;
         void endFrame(RenderFrame& rf) const;
@@ -50,5 +53,6 @@ namespace mn::Graphics
         mn::handle_t surface, swapchain;
         std::vector<std::shared_ptr<Image>> images;
         std::shared_ptr<FrameData> frame_data;
+        Math::Vec2u _size;
     };
 }

@@ -57,7 +57,7 @@ namespace mn::Graphics
         VmaAllocation alloc;
         VmaAllocationInfo info;
         vmaCreateBuffer(allocator, &buffer_create_info, &alloc_create_info, &buff, &alloc, &info);
-        
+
         allocation = alloc;
         handle = buff;
 

@@ -378,6 +378,7 @@ PipelineBuilder PipelineBuilder::fromLua(const std::string& source_dir, const st
     res->try_get<SL::Number>("depthFormat", [&](const SL::Number& format){ builder.setDepthFormat(static_cast<uint32_t>(format)); });
     res->try_get<SL::Boolean>("depthTesting",    [&](const SL::Boolean& _bool){ builder.setDepthTesting(_bool); });
     res->try_get<SL::Boolean>("backfaceCulling", [&](const SL::Boolean& _bool){ builder.setBackfaceCull(_bool); });
+    res->try_get<SL::Number>("polygon", [&](const SL::Number& polygon){ builder.setPolyMode(static_cast<Polygon>(polygon)); });
 
     return builder;
 }
@@ -631,8 +632,9 @@ Pipeline PipelineBuilder::build() const
     {
         switch (p)
         {
-        case Polygon::Fill: return VK_POLYGON_MODE_FILL;
-        default:            return VK_POLYGON_MODE_FILL;
+        case Polygon::Fill:      return VK_POLYGON_MODE_FILL;
+        case Polygon::Wireframe: return VK_POLYGON_MODE_LINE;
+        default:                 return VK_POLYGON_MODE_FILL;
         }
     }(poly);
 
@@ -679,9 +681,6 @@ Pipeline PipelineBuilder::build() const
         .depthAttachmentFormat = d_format,
         .stencilAttachmentFormat = VK_FORMAT_D32_SFLOAT_S8_UINT
     };
-
-    //VkVertexInputAttributeDescription desc;
-    //desc.format = VK_FORMAT_
 
     VkPipelineVertexInputStateCreateInfo input_state = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

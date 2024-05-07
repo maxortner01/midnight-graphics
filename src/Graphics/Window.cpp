@@ -57,6 +57,8 @@ Window::Window(const std::string& config_file)
     handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN));
     MIDNIGHT_ASSERT(handle, "Error initializing window");
 
+    std::tie(Math::x(_size), Math::y(_size)) = std::pair(width, height);
+
     auto instance = mn::Graphics::Backend::Instance::get();
     const auto& device = instance->getDevice();
     surface   = instance->createSurface(handle);

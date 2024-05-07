@@ -23,7 +23,7 @@ namespace mn::Graphics
 
     enum class Polygon
     {
-        Fill
+        Fill, Wireframe
     };
 
     struct Shader : ObjectHandle<Shader>
@@ -71,7 +71,7 @@ namespace mn::Graphics
 
     struct DescriptorSet
     {
-        DescriptorSet(const std::vector<mn::handle_t>& layouts, uint32_t count = 1, uint32_t layout_size = 0);
+        DescriptorSet(const std::vector<mn::handle_t>& layouts, uint32_t count = 1, uint32_t layout_size = 0); // layout_size should be a vector of sizes per layout
         ~DescriptorSet();
 
         void bind(uint32_t index, const std::unique_ptr<Backend::CommandBuffer>& cmd, mn::handle_t pipelineLayout) const;
@@ -145,6 +145,7 @@ namespace mn::Graphics
     private:
         std::pair<uint32_t, uint32_t> size;
         std::unordered_map<ShaderType, std::shared_ptr<Shader>> modules;
+        std::unordered_map<uint32_t, uint32_t> desc_sizes; // we can set the byte size of particular descriptor bindings
         Topology top  = Topology::Triangles;
         Polygon  poly = Polygon::Fill;
         bool backface_cull = true, blending = true, depth = true;

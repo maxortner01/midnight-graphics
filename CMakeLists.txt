@@ -21,6 +21,9 @@ set(SPIRV_REFLECT
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
 
+set(SIMPLEX_NOISE
+    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src/SimplexNoise.cpp)
+
 add_executable(main 
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
@@ -37,9 +40,15 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 
-    ${SPIRV_REFLECT}
+    ${CMAKE_SOURCE_DIR}/game/MeshGeneration.cpp
+
+    ${SPIRV_REFLECT} ${SIMPLEX_NOISE}
 )
 target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
-target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include/midnight ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
+target_include_directories(main PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_SOURCE_DIR}/include/midnight 
+    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect
+    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src)
 
 target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")

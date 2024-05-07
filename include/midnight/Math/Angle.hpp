@@ -26,6 +26,18 @@ namespace mn::Math
             return Angle(rads + b.rads);
         }
 
+        Angle& operator+=(const Angle& b) 
+        {
+            rads += b.rads;
+            return *this;
+        }
+
+        Angle& operator-=(const Angle& b) 
+        {
+            rads -= b.rads;
+            return *this;
+        }
+
         constexpr Angle operator-(const Angle& b) const
         {
             return Angle(rads + b.rads);

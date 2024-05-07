@@ -149,6 +149,11 @@ void RenderFrame::draw(const Pipeline& pipeline, const Model& model, uint32_t de
         draw(pipeline, model.vertex, desc_index);
 }
 
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t desc_index) const
+{
+    draw(pipeline, *model, desc_index);
+}
+
 void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index) const
 {
     MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
