@@ -1,6 +1,6 @@
 #include <midnight/midnight.hpp>
 
-#include "game/MeshGeneration.hpp"
+#include "game/World.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -8,8 +8,6 @@
 #include <stack>
 #include <thread>
 #include <atomic>
-
-#include <SimplexNoise.h>
 
 #ifndef SOURCE_DIR
 #define SOURCE_DIR "."
@@ -28,16 +26,6 @@ struct Uniform
 	mn::Math::Vec3f player_pos;
 };
 
-struct Chunk
-{
-    Chunk(const mn::Math::Vec3i& chunk_index) :
-        location(chunk_index)
-    {   }
-
-    const mn::Math::Vec3i location;
-    std::shared_ptr<mn::Graphics::Model> model;
-};
-
 int main()
 {
     using namespace mn;
@@ -49,47 +37,11 @@ int main()
         .setDescriptorSize(sizeof(Uniform))
         .build();
 
-    std::mutex chunk_mutex, generate_mutex;
-    std::vector<std::shared_ptr<Chunk>> chunks;
-    std::vector<std::shared_ptr<Chunk>> generate_chunks;
-
-    std::atomic<bool> done(false);
-	const auto thread_func = [&]()
-    {
-        while (!done)
-        {
-            if (!generate_chunks.size()) continue;
-
-            generate_mutex.lock();
-            auto chunk = generate_chunks.back();
-            generate_chunks.pop_back();
-            generate_mutex.unlock();
-
-            chunk->model = Game::generate_mesh(chunk->location);
-
-            chunk_mutex.lock();
-            chunks.push_back(chunk);
-            chunk_mutex.unlock();
-        }
-    };
-
-	const auto GENERATOR_THREADS = 2U;
-	const auto threads = [GENERATOR_THREADS, &thread_func]()
-	{
-		std::vector<std::unique_ptr<std::thread>> threads(GENERATOR_THREADS);
-		for (auto& thread : threads)
-			thread = std::make_unique<std::thread>(thread_func);
-		return threads;
-	}();
+	const auto& world = Game::World::get();
+	world->loadFromLua(SOURCE_DIR "/world.lua");
 
     auto player_pos = Math::Vec3f({ 0, 9, 0 });
 	auto player_rot = Math::Vec3<Math::Angle>({ Math::Angle::radians(0), Math::Angle::radians(0), Math::Angle::radians(0) });
-
-    std::vector<Math::Vec3i> radius;
-	for (int32_t z = -1; z <= 1; z++)
-		for (int32_t y = -1; y <= 1; y++)
-			for (int32_t x = -1; x <= 1; x++)
-				radius.push_back(Math::Vec3i({ x, y, z }));
 
     {
         const auto aspect = static_cast<float>(Math::x(window.size())) / static_cast<float>(Math::y(window.size()));
@@ -110,14 +62,14 @@ int main()
 
     // Main loop
     auto now = std::chrono::high_resolution_clock::now();
-    while (!window.shouldClose() && !done)
+    while (!window.shouldClose() && !world->done)
     {
 		Math::Vec2f mouse_movement;
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
-                window.close();
+                world->done = true;
 
 			if (event.type == SDL_EVENT_KEY_DOWN)
 			{
@@ -131,9 +83,7 @@ int main()
 				}
 
 				if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
-				{
-					done = true;
-				}
+					world->done = true;
 
 			}
 			if (event.type == SDL_EVENT_KEY_UP)
@@ -152,48 +102,39 @@ int main()
         window.finishWork();
 
         const auto player_chunk = Math::Vec3i({ 
-			(int32_t)(Math::x(player_pos) / Game::CHUNK_SIZE), 
-			(int32_t)(Math::y(player_pos) / Game::CHUNK_SIZE),
-			(int32_t)(Math::z(player_pos) / Game::CHUNK_SIZE) 
+			(int32_t)(Math::x(player_pos) / world->chunkSize()), 
+			(int32_t)(Math::y(player_pos) / world->chunkSize()),
+			(int32_t)(Math::z(player_pos) / world->chunkSize()) 
 		});
-        
-        std::vector<std::shared_ptr<Chunk>> new_chunks;
 
-        generate_mutex.lock();
-        for (const auto& r : radius)
-        {
-            const auto pos = player_chunk + r;
-            // check if chunk in chunks
-            bool found = false;
-            for (const auto& chunk : chunks)
-                if (Math::x(chunk->location) == Math::x(pos) && 
-					Math::y(chunk->location) == Math::y(pos) &&
-					Math::z(chunk->location) == Math::z(pos))
-                {
-                    found = true;
-                    break;
-                }
+		world->checkChunks(player_chunk);
 
-            if (!found)
+		window.runFrame([&](RenderFrame& frame)
+		{
+			frame.clear({ 0.f, 0.f, 0.f });
+
+			world->useChunks([&](const auto& chunks)
 			{
-                for (const auto& chunk : generate_chunks)
-                    if (Math::x(chunk->location) == Math::x(pos) && 
-						Math::y(chunk->location) == Math::y(pos) &&
-						Math::z(chunk->location) == Math::z(pos))
-                    {
-                        found = true;
-                        break;
-                    }
-			}
+				frame.startRender();
 
-            if (!found) 
-                generate_chunks.insert(generate_chunks.begin(), std::make_shared<Chunk>(pos));
-        }
+				/*
+				std::vector<std::shared_ptr<Game::Chunk>> culled;
+				for (const auto& chunk : chunks)
+				{
+					const auto diff = (Math::Vec3f)chunk->location - (Math::Vec3f)player_chunk;
 
-		std::sort(generate_chunks.begin(), generate_chunks.end(), [player_chunk](const auto& a, const auto& b) { return Math::length(b->location - player_chunk) < Math::length(a->location - player_chunk); });
-		std::erase_if(generate_chunks, [player_chunk](const auto& a) { return Math::length(a->location - player_chunk) >= 3; });
+					const auto dir = Math::inner(forward, diff);
+					if (dir > 0 || Math::length(diff) >= 2) continue;
+					culled.push_back(chunk);
+				}*/
 
-        generate_mutex.unlock();
+				for (const auto& chunk : chunks)
+					frame.draw(pipeline, chunk->model);
+					
+				frame.endRender();
+			});
+		});
+
         
         auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
         uniform.view = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
@@ -202,31 +143,7 @@ int main()
 		const auto forward = Math::Vec3f({
 			sinf(Math::y(player_rot).asRadians()), 0.f, cosf(Math::y(player_rot).asRadians())
 		});
-
-        auto frame = window.startFrame();
-        frame.clear({ 0.f, 0.f, 0.f });
-
-        chunk_mutex.lock();
-		std::erase_if(chunks, [player_chunk](const auto& a) { return Math::length(a->location - player_chunk) >= 3; });
-        frame.startRender();
-		{
-			std::vector<std::shared_ptr<Chunk>> culled;
-			for (const auto& chunk : chunks)
-			{
-				const auto diff = (Math::Vec3f)chunk->location - (Math::Vec3f)player_chunk;
-
-				const auto dir = Math::inner(forward, diff);
-				if (dir > 0 || Math::length(diff) >= 2) continue;
-				culled.push_back(chunk);
-			}
-
-			for (const auto& chunk : culled)
-            	frame.draw(pipeline, chunk->model);
-		}
-        frame.endRender();
-        chunk_mutex.unlock();
-
-        window.endFrame(frame);
+		
         const auto new_now = std::chrono::high_resolution_clock::now();
         const std::chrono::duration<double, std::chrono::seconds::period> dt = new_now - now;
         window.setTitle((std::stringstream() << std::fixed << std::setprecision(2) << (1.0 / dt.count()) << " fps").str());
@@ -264,8 +181,6 @@ int main()
     }
 
     window.finishWork();
-
-    done = true;
-    for (const auto& g : threads)
-		g->join();
+	world->finish();
+	Game::World::destroy();
 }

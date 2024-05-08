@@ -38,11 +38,10 @@ namespace mn::Graphics
         
         RenderFrame startFrame() const;
         void endFrame(RenderFrame& rf) const;
+        void runFrame(const std::function<void(RenderFrame& rf)>& func) const;
 
         void setTitle(const std::string& title) const;
-
         bool shouldClose() const { return _close; }
-
         void finishWork() const;
 
     private:

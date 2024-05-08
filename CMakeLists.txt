@@ -40,7 +40,7 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 
-    ${CMAKE_SOURCE_DIR}/game/MeshGeneration.cpp
+    ${CMAKE_SOURCE_DIR}/game/World.cpp
 
     ${SPIRV_REFLECT} ${SIMPLEX_NOISE}
 )
