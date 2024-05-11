@@ -103,13 +103,21 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         .synchronization2 = VK_TRUE
     };
 
+    VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+        .bufferDeviceAddress = VK_TRUE,
+        .bufferDeviceAddressCaptureReplay = VK_FALSE,
+        .bufferDeviceAddressMultiDevice = VK_FALSE,
+        .pNext = &sync
+    };
+
     VkPhysicalDeviceFeatures features = {
         .fillModeNonSolid = VK_TRUE
     };
 
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = &sync,
+        .pNext = &buffer_device,
         .pEnabledFeatures = &features,
         .flags = 0,
         .queueCreateInfoCount = 1,
@@ -210,47 +218,6 @@ Device::createSwapchain(Handle<Window> window, handle_t surface) const
         getSwapchainImages(swapchain), 
         static_cast<uint32_t>(surfaceFormats[0].format), 
         std::pair(w, h));
-
-    /*
-    std::pair<handle_t, std::vector<handle_t>> pair;
-    pair.first = static_cast<handle_t>(swapchain);
-    pair.second = getSwapchainImages(pair.first);*/
-    
-    /*
-    const auto images = getSwapchainImages(pair.first);
-    
-    pair.second.reserve(images.size());
-    for (uint32_t i = 0; i < images.size(); i++)
-    {
-        VkImageViewCreateInfo create_info = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .pNext = nullptr,
-            .image = static_cast<VkImage>(images[i]),
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format   = surfaceFormats[0].format,
-            .components = {
-                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .a = VK_COMPONENT_SWIZZLE_IDENTITY
-            },
-            .subresourceRange = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1
-            }
-        };
-
-        VkImageView image_view;
-        const auto err = vkCreateImageView(handle.as<VkDevice>(), &create_info, nullptr, &image_view);
-        MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating image views (" << err << ")");
-
-        pair.second.push_back(static_cast<handle_t>(image_view));
-    }*/
-
-    //return pair;
 }
 
 std::vector<handle_t> Device::getSwapchainImages(handle_t swapchain) const

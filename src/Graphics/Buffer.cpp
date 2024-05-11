@@ -44,7 +44,11 @@ namespace mn::Graphics
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
             .size = newsize,
-            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT  | 
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT   | 
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | 
+                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT   |
+                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR
         };
 
         VmaAllocationCreateInfo alloc_create_info = {
@@ -70,4 +74,21 @@ namespace mn::Graphics
             std::free(current_data);
         }
     }
+
+    Buffer::gpu_addr Buffer::getAddress() const
+    {
+        if (!handle) return nullptr;
+
+        const auto& device = Backend::Instance::get()->getDevice();
+
+        VkBufferDeviceAddressInfoKHR addr_info {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+            .buffer = handle.as<VkBuffer>(),
+            .pNext = nullptr
+        };
+
+        PFN_vkVoidFunction pvkGetBufferDeviceAddressKHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkGetBufferDeviceAddressKHR");
+        return reinterpret_cast<gpu_addr>( ((PFN_vkGetBufferDeviceAddressKHR)(pvkGetBufferDeviceAddressKHR))(device->getHandle().as<VkDevice>(), &addr_info) );
+    }
+
 }

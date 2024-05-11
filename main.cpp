@@ -24,6 +24,7 @@ struct Constants
 {
     mn::Math::Mat4<float> proj, view, model;
 	mn::Math::Vec3f player_pos;
+	mn::Graphics::Buffer::gpu_addr buffer;
 };
 
 int main()
@@ -43,6 +44,9 @@ int main()
 		.setPushConstantObject<Constants>()
         .build();
 
+	Buffer data;
+	data.allocateBytes(sizeof(float));
+
 	Model cube = Model::fromLua(SOURCE_DIR "/models/cube.lua");
 
 	const auto& world = Game::World::get();
@@ -60,6 +64,7 @@ int main()
 		c.model = Math::scale(scale) * Math::translation(position);
         c.view  = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
 		c.player_pos = player_pos;
+		c.buffer = data.getAddress();
 		frame.setPushConstant(pipeline, c);
 	};	
 

@@ -8,17 +8,21 @@ namespace mn::Graphics
 {
     struct Buffer : ObjectHandle<Buffer>
     {
+        using gpu_addr = void*;
+
         Buffer();
         Buffer(Buffer&&) = default;
         Buffer(const Buffer&) = delete;
         virtual ~Buffer() { rawFree(); }
 
-        virtual uint32_t getSize() const { return 0; };
+        virtual uint32_t getSize()  const { return 0; }
         virtual uint32_t vertices() const { return 0; }
 
         void allocateBytes(std::size_t bytes) { rawResize(bytes); }
         auto* rawData() const { return reinterpret_cast<std::byte*>(_data); }
         auto allocated() const { return _size; }
+
+        gpu_addr getAddress() const;
 
     protected:
         void  rawResize(std::size_t newsize);

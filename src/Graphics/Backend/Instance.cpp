@@ -144,7 +144,8 @@ Instance::Instance() : handle(nullptr)
     VmaAllocatorCreateInfo alloc_create_info = {
         .instance = instance,
         .device = device->getHandle().as<VkDevice>(),
-        .physicalDevice = physical_devices[0]
+        .physicalDevice = physical_devices[0],
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
     };
 
     const auto alloc = [&]()
