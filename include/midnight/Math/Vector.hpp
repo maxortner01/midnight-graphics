@@ -174,6 +174,12 @@ namespace mn::Math
         return v / length(v);
     }
 
+    template<std::size_t C, typename T>
+    static Vec<C, T> reflect(const Vec<C, T>& incident, const Vec<C, T>& normal)
+    {
+        return incident - normal * static_cast<T>(2.0) * inner(incident, normal);
+    }
+
     // Technically the outer product is defined for all dimensions and the cross-product
     // is restricted to only 3 dimensions... but I'll leave it for posterity's sake
     template<typename T>

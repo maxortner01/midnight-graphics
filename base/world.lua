@@ -1,13 +1,13 @@
 World = {
-    Workers = 1,
-    ChunkCells = 50,
-    CellWidth = 0.4,
+    Workers = 3,
+    ChunkCells = 25,
+    CellWidth = 0.35,
     Radius = {}
 };
 
-for z = -1,1 do
-    for y = -1,1 do
-        for x = -1,1 do
+for z = -2,2 do
+    for y = -2,2 do
+        for x = -2,2 do
             World.Radius[#World.Radius+1] = { x, y, z }
         end
     end

@@ -3,6 +3,8 @@
 #include <SimplexNoise.h>
 #include <SL/Lua.hpp>
 
+#include <VHACD.h>
+
 #ifndef SOURCE_DIR
 #define SOURCE_DIR "."
 #endif
@@ -54,6 +56,30 @@ void load_triangle_table()
     triangle_table.shrink_to_fit();
 }
 
+bool World::inside(mn::Math::Vec3f position)
+{
+    return getValue(position) > 0.04f;
+}
+
+float World::getValue(mn::Math::Vec3f pos)
+{
+    return noise.fractal(5, mn::Math::x(pos) * 0.025, mn::Math::y(pos) * 0.025, mn::Math::z(pos) * 0.025);
+}
+
+mn::Math::Vec3f World::getGradient(mn::Math::Vec3f position)
+{
+    const auto h = 0.001f;
+    return (mn::Math::Vec3f({
+        getValue( position + mn::Math::Vec3f({ h,   0.f, 0.f }) ),
+        getValue( position + mn::Math::Vec3f({ 0.f, h,   0.f }) ),
+        getValue( position + mn::Math::Vec3f({ 0.f, 0.f, h }) )
+    }) - mn::Math::Vec3f({
+        getValue( position - mn::Math::Vec3f({ h,   0.f, 0.f }) ),
+        getValue( position - mn::Math::Vec3f({ 0.f, h,   0.f }) ),
+        getValue( position - mn::Math::Vec3f({ 0.f, 0.f, h }) )
+    })) / (-2.f * h);
+}
+
 void World::loadFromLua(const std::string& dir)
 {
     SL::Runtime runtime(dir);
@@ -85,7 +111,7 @@ void World::loadFromLua(const std::string& dir)
             generate_chunks.pop_back();
             generate_mutex.unlock();
 
-            chunk->model = this->generate_mesh(chunk->location);
+            this->generate_mesh(chunk);
 
             chunk_mutex.lock();
             chunks.push_back(chunk);
@@ -158,12 +184,15 @@ void World::useChunks(const std::function<void(const std::vector<std::shared_ptr
     func(chunks);
 }
 
-std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_index)
+void World::generate_mesh(std::shared_ptr<Chunk> chunk)
 {
+    const auto chunk_index = chunk->location;
     START_TIMER(main);
 
     using namespace mn;
     using namespace mn::Graphics;
+
+    std::cout << "Generating at " << Math::x(chunk_index) << ", " << Math::y(chunk_index) << ", " << Math::z(chunk_index) << "\n";
 
     {
         std::lock_guard lock(m);
@@ -193,11 +222,6 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_
         });
     };
 
-    const auto value = [](Math::Vec3f pos)
-    {
-        return noise.fractal(5, Math::x(pos) * 0.025, Math::y(pos) * 0.025, Math::z(pos) * 0.025);
-    };
-
 	struct Pos
 	{
 		Math::Vec3f world_position;
@@ -218,7 +242,7 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_
 			for (uint32_t x = 0; x < SIZE; x++)
 			{
 				const auto world_position = world_pos({x, y, z});
-				const auto v = value(world_position);
+				const auto v = getValue(world_position);
 				values[z][y][x] = Pos{
 					.value = v,
 					.world_position = world_position
@@ -229,6 +253,9 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_
 
     START_TIMER(vertex_timer);
 
+    std::vector<Math::Vec3f> collision_vertices;
+
+    collision_vertices.reserve(SIZE * SIZE * SIZE * 5);
 	frame.vertices.reserve(SIZE * SIZE * SIZE * 5);
 	frame.indices.reserve(SIZE * SIZE * SIZE * 5);
 	Pos* positions[8] = {  };
@@ -266,14 +293,14 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_
 							(positions[Math::y(edge)]->world_position - positions[Math::x(edge)]->world_position) * 
 							( ( cutoff - positions[Math::x(edge)]->value ) / ( positions[Math::y(edge)]->value - positions[Math::x(edge)]->value ) );
 
+                    collision_vertices.push_back(position);
 					frame.vertices.push_back(Model::Vertex {
-						.position = position
+						.position = position,
+                        .color = Math::Vec4f({ 1.f, 1.f, 1.f, 1.f })
 					});
                 }
             }
 
-	//frame.indices.shrink_to_fit();
-	//frame.vertices.shrink_to_fit();
     std::cout << "Vertices generated in " << MEASURE_SECONDS(vertex_timer) << " seconds\n";
 
     START_TIMER(index_timer);
@@ -297,7 +324,7 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(mn::Math::Vec3i chunk_
 	std::cout << "  Vertex count: " << frame.vertices.size() << " (" << frame.vertices.size() * sizeof(Model::Vertex) * 1e-6 << ") MB\n";
 	std::cout << "  Index count:  " << frame.indices.size() << " (" << frame.indices.size() * sizeof(uint32_t) * 1e-6 << ") MB\n\n";
 
-    return std::make_shared<Model>(Model::fromFrame(frame));
+    chunk->model = std::make_shared<Model>(Model::fromFrame(frame));
 }
 
 

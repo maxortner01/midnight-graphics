@@ -2,6 +2,7 @@
 
 #include <Def.hpp>
 
+#include "Vector.hpp"
 #include "Angle.hpp"
 
 namespace mn::Math
@@ -65,6 +66,19 @@ namespace mn::Math
             for (uint32_t r = 0; r < R; r++)
                 for (uint32_t c = 0; c < C; c++)
                     _r.m[r][c] = m[r][c] * sc;
+            return _r;
+        }
+
+        template<typename A>
+        auto operator*(const Vec<C, A>& v) const
+        {
+            static_assert(R == C);
+            Vec<C, A> _r;
+
+            for (uint32_t c = 0; c < C; c++)
+                for (uint32_t r = 0; r < R; r++)
+                    _r.c[c] += m[r][c] * v.c[r];
+            
             return _r;
         }
     };
@@ -154,6 +168,16 @@ namespace mn::Math
         m.m[3][1] = y(pos);
         m.m[3][2] = z(pos);
 
+        return m;
+    }
+
+    template<typename T>
+    static Mat<4, 4, T> scale(const Vec3<T>& sc)
+    {
+        auto m = identity<4, T>();
+        m.m[0][0] = sc.c[0];
+        m.m[1][1] = sc.c[1];
+        m.m[2][2] = sc.c[2];
         return m;
     }
 

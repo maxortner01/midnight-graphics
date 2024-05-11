@@ -16,3 +16,6 @@
 [submodule "extern/SimplexNoise"]
 	path = extern/SimplexNoise
 	url = https://github.com/SRombauts/SimplexNoise
+[submodule "extern/v-hacd"]
+	path = extern/v-hacd
+	url = https://github.com/kmammou/v-hacd

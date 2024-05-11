@@ -109,6 +109,11 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
         &dsRange);*/
 }
 
+void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) const
+{
+    pipeline.setPushConstant(frame_data->command_buffer, data);
+}
+
 void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index) const
 {
     MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
@@ -119,8 +124,6 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer,
         cmdBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline.getHandle().as<VkPipeline>());
-
-    pipeline.bindDescriptorSet(desc_index, frame_data->command_buffer);
 
     const auto buff = buffer->getHandle().as<VkBuffer>();
     VkDeviceSize off = 0;
@@ -164,8 +167,6 @@ void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> 
         cmdBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline.getHandle().as<VkPipeline>());
-
-    pipeline.bindDescriptorSet(desc_index, frame_data->command_buffer);
 
     const auto buff = buffer->getHandle().as<VkBuffer>();
     VkDeviceSize off = 0;

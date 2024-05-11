@@ -42,6 +42,7 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/game/World.cpp
 
+    ${CMAKE_SOURCE_DIR}/extern/v-hacd/include/VHACD.cpp
     ${SPIRV_REFLECT} ${SIMPLEX_NOISE}
 )
 target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
@@ -49,6 +50,7 @@ target_include_directories(main PRIVATE
     ${CMAKE_SOURCE_DIR}/include 
     ${CMAKE_SOURCE_DIR}/include/midnight 
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect
-    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src)
+    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src
+    ${CMAKE_SOURCE_DIR}/extern/v-hacd/include)
 
 target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")

@@ -20,7 +20,7 @@
 
 // Basic controls. Want to be able to fly around
 
-struct Uniform
+struct Constants
 {
     mn::Math::Mat4<float> proj, view, model;
 	mn::Math::Vec3f player_pos;
@@ -33,9 +33,17 @@ int main()
 
     auto window = Window::fromLuaScript("window.lua");
 
+	// maube instead of here we instead specify the size and count inside the actual
+	// descriptor set, that way we can build/rebuild the buffers if needed on the fly
+
+	// We need to rewrite pipeline.cpp
+	// Let's take a step back from shader reflection and have the user specify the information
+	// Firstly, 
     auto pipeline = PipelineBuilder::fromLua(SOURCE_DIR, "/pipelines/main.lua")
-        .setDescriptorSize(sizeof(Uniform))
+		.setPushConstantObject<Constants>()
         .build();
+
+	Model cube = Model::fromLua(SOURCE_DIR "/models/cube.lua");
 
 	const auto& world = Game::World::get();
 	world->loadFromLua(SOURCE_DIR "/world.lua");
@@ -43,12 +51,17 @@ int main()
     auto player_pos = Math::Vec3f({ 0, 9, 0 });
 	auto player_rot = Math::Vec3<Math::Angle>({ Math::Angle::radians(0), Math::Angle::radians(0), Math::Angle::radians(0) });
 
-    {
-        const auto aspect = static_cast<float>(Math::x(window.size())) / static_cast<float>(Math::y(window.size()));
-        auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
-        uniform.proj  = Math::perspective(aspect, Math::Angle::degrees(75), { 0.1, 1000.0 });
-        uniform.model = Math::identity<4, float>();
-    }
+    const auto aspect = static_cast<float>(Math::x(window.size())) / static_cast<float>(Math::y(window.size()));
+	const auto set_view = [&](const auto& frame, const auto& pipeline, Math::Vec3f scale, Math::Vec3f position)
+	{
+		Constants c;
+        //auto& uniform = pipeline.template descriptorData<Uniform>(0, 0);
+        c.proj  = Math::perspective(aspect, Math::Angle::degrees(75), { 0.1, 1000.0 });
+		c.model = Math::scale(scale) * Math::translation(position);
+        c.view  = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
+		c.player_pos = player_pos;
+		frame.setPushConstant(pipeline, c);
+	};	
 
 	// we want to be able to do multiple uniform bindings
 	// we want to be able to stage buffer data so it's not mapped
@@ -59,6 +72,19 @@ int main()
 	std::set<SDL_Scancode> keys;
 	bool constrained = true;
 	SDL_SetRelativeMouseMode(SDL_TRUE);
+
+	// cool... how do we do mesh independent positions?
+	// looks like we need a way of allocating a variable amount of descriptor sets
+	// So, ideally we can infer from a shader what kinds of descriptor sets there are
+	// Then we want to be able to specify things like, hey make only one of binding 1
+	// but 20 of binding 2. Then, we can bind the correct ones(?)
+	// Or maybe we just have the user handle descriptor sets? Need to flesh this out ASAP
+	// Should be able to specify count and bytesize per binding
+	// then we can choose the binding indexes we want
+
+	// next up: basic collisions (fcl) and physics
+	auto cube_pos = Math::Vec3f({ 0.f, 9.f, -1.f });
+	auto cube_vel = Math::Vec3f({ 0.f, 0.f, -2.f });
 
     // Main loop
     auto now = std::chrono::high_resolution_clock::now();
@@ -117,29 +143,17 @@ int main()
 			{
 				frame.startRender();
 
-				/*
-				std::vector<std::shared_ptr<Game::Chunk>> culled;
-				for (const auto& chunk : chunks)
-				{
-					const auto diff = (Math::Vec3f)chunk->location - (Math::Vec3f)player_chunk;
-
-					const auto dir = Math::inner(forward, diff);
-					if (dir > 0 || Math::length(diff) >= 2) continue;
-					culled.push_back(chunk);
-				}*/
-
+				set_view(frame, pipeline, Math::Vec3f{ 1.f,   1.f,   1.f    }, Math::Vec3f{0.f, 0.f, 0.f});
 				for (const auto& chunk : chunks)
 					frame.draw(pipeline, chunk->model);
+
+				set_view(frame, pipeline, Math::Vec3f{ 0.25f, 0.25f, 0.25f, }, cube_pos);
+				frame.draw(pipeline, cube); // need to be able to specify binding 0, index 0 && binding 1, index 1
 					
 				frame.endRender();
 			});
 		});
-
-        
-        auto& uniform = pipeline.descriptorData<Uniform>(0, 0);
-        uniform.view = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
-		uniform.player_pos = player_pos;
-
+		
 		const auto forward = Math::Vec3f({
 			sinf(Math::y(player_rot).asRadians()), 0.f, cosf(Math::y(player_rot).asRadians())
 		});
@@ -148,6 +162,33 @@ int main()
         const std::chrono::duration<double, std::chrono::seconds::period> dt = new_now - now;
         window.setTitle((std::stringstream() << std::fixed << std::setprecision(2) << (1.0 / dt.count()) << " fps").str());
         now = new_now;
+
+		/* Collision checking */
+		// For every vertex, check if it's inside the world
+		Math::Vec3f normal;
+		const auto model = Math::scale(Math::Vec3f{ 0.25f, 0.25f, 0.25f, }) * Math::translation(cube_pos);
+		for (const auto& vertex : cube.vertices())
+		{
+			const auto t_pos = [&]()
+			{	
+				const auto pos4 = Math::Vec4f({ Math::x(vertex.position), Math::y(vertex.position), Math::z(vertex.position), 1.f });	
+				const auto t_pos4 = model * pos4;
+				return Math::Vec3f({ Math::x(t_pos4), Math::y(t_pos4), Math::z(t_pos4) });
+			}();
+
+			//std::cout << Math::x(t_pos) << ", " << Math::y(t_pos) << ", " << Math::z(t_pos) << "\n";
+			//std::cout << Game::World::inside(t_pos) << "\n";
+			if (Game::World::inside(t_pos))
+				normal += Game::World::getGradient(t_pos);
+		}
+
+		if (Math::length(normal))
+		{
+			cube_vel = Math::reflect(cube_vel, Math::normalized(normal));
+			cube_pos += cube_vel * 0.1f;
+		}
+
+		cube_pos += cube_vel * dt.count();
 
 		Math::x(player_rot) -= Math::Angle::radians(Math::y(mouse_movement) * dt.count());
 		Math::y(player_rot) -= Math::Angle::radians(Math::x(mouse_movement) * dt.count());

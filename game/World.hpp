@@ -12,6 +12,7 @@ namespace Game
         {   }
 
         const mn::Math::Vec3i location;
+
         std::shared_ptr<mn::Graphics::Model> model;
     };
 
@@ -30,11 +31,15 @@ namespace Game
         void checkChunks(const mn::Math::Vec3i& player_chunk);
         void useChunks(const std::function<void(const std::vector<std::shared_ptr<Chunk>>&)>& func);
         float chunkSize() const { return params.chunk_cells * params.cell_width; }
+        
+        static bool inside(mn::Math::Vec3f position);
+        static float getValue(mn::Math::Vec3f position);
+        static mn::Math::Vec3f getGradient(mn::Math::Vec3f position);
 
     private:
         friend class Singleton;
 
-        std::shared_ptr<mn::Graphics::Model> generate_mesh(mn::Math::Vec3i chunk_index);
+        void generate_mesh(std::shared_ptr<Chunk> chunk);
 
         std::mutex chunk_mutex, generate_mutex;
         std::vector<std::shared_ptr<Chunk>> chunks;

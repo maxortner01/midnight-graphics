@@ -9,7 +9,7 @@ layout(location = 0) out vec4 outColor;
 float getScalar(float x, float r)
 {
     //return 1.0 - (x / r) * exp(x - r);
-    return pow(1 - x / r, 0.5);
+    return pow(max(1 - x / r, 0), 2);
 }
 
 void main() {

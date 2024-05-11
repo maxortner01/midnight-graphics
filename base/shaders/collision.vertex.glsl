@@ -8,7 +8,7 @@ layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 player_pos;
 layout (location = 2) out vec4 world_pos;
 
-layout (push_constant) uniform UniformObject
+layout (binding = 0) uniform UniformObject
 {
     mat4 proj;
     mat4 view;
@@ -16,16 +16,12 @@ layout (push_constant) uniform UniformObject
     vec3 playerpos;
 } ubo;
 
-void main() {
-    vec3 light_dir = vec3(0, -1, -0.5);
-    
+void main() {    
     world_pos = ubo.model * vec4(position, 1.0);
     gl_Position = ubo.proj * ubo.view * world_pos;
     gl_Position.y *= -1;
     
     player_pos = ubo.playerpos;
     
-    float val = max(dot(light_dir, normal), 0.0);
-    fragColor = vec4(val + 0.2) * color;
-    fragColor.w = 1;
+    fragColor = color;
 }
