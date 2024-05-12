@@ -169,6 +169,7 @@ void World::checkChunks(const mn::Math::Vec3i& player_chunk)
     generate_mutex.unlock();
 
     generate_mutex.lock();
+    // sort based off closeness && player direction (i.e. 2 * r / (dot dis and player dir + 1))
     std::sort(generating.begin(), generating.end(), [player_chunk](const auto& a, const auto& b) { return Math::length(a->chunk->location - player_chunk) < Math::length(b->chunk->location - player_chunk); });
     generate_mutex.unlock();
 
@@ -182,7 +183,7 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(std::shared_ptr<Chunk>
     using namespace mn;
     using namespace mn::Graphics;
 
-    std::cout << "Generating at " << Math::x(chunk_index) << ", " << Math::y(chunk_index) << ", " << Math::z(chunk_index) << "\n";
+    //std::cout << "Generating at " << Math::x(chunk_index) << ", " << Math::y(chunk_index) << ", " << Math::z(chunk_index) << "\n";
 
     {
         std::lock_guard lock(m);
@@ -291,7 +292,7 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(std::shared_ptr<Chunk>
                 }
             }
 
-    std::cout << "Vertices generated in " << MEASURE_SECONDS(vertex_timer) << " seconds\n";
+    //std::cout << "Vertices generated in " << MEASURE_SECONDS(vertex_timer) << " seconds\n";
 
     START_TIMER(index_timer);
 
@@ -308,11 +309,11 @@ std::shared_ptr<mn::Graphics::Model> World::generate_mesh(std::shared_ptr<Chunk>
 		}
     } 
 
-    std::cout << "Normals generated in " << MEASURE_SECONDS(index_timer) << " seconds\n";
+    //std::cout << "Normals generated in " << MEASURE_SECONDS(index_timer) << " seconds\n";
 
-    std::cout << "Chunk generated in " << MEASURE_SECONDS(main) << " seconds..." << std::endl;
-	std::cout << "  Vertex count: " << frame.vertices.size() << " (" << frame.vertices.size() * sizeof(Model::Vertex) * 1e-6 << ") MB\n";
-	std::cout << "  Index count:  " << frame.indices.size() << " (" << frame.indices.size() * sizeof(uint32_t) * 1e-6 << ") MB\n\n";
+    //std::cout << "Chunk generated in " << MEASURE_SECONDS(main) << " seconds..." << std::endl;
+	//std::cout << "  Vertex count: " << frame.vertices.size() << " (" << frame.vertices.size() * sizeof(Model::Vertex) * 1e-6 << ") MB\n";
+	//std::cout << "  Index count:  " << frame.indices.size() << " (" << frame.indices.size() * sizeof(uint32_t) * 1e-6 << ") MB\n\n";
 
     return std::make_shared<Model>(Model::fromFrame(frame));
 }

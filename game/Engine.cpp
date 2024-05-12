@@ -153,6 +153,8 @@ void Engine::start(const std::string& location, std::function<Scene*()> construc
             uint32_t current_index = 1;
             world.each([&](flecs::entity e, const Components::Mesh& mesh)
             {
+                // Here we can cull based off the mesh information... if the frustum culling test fails then return
+
                 // if entity has a transform component, set constants.index = current_index++ and construct model matrix at that index
                 if (e.has<Components::Transform>())
                 {

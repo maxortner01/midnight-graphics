@@ -8,12 +8,11 @@
 #define SOURCE_DIR "."
 #endif
 
-// Engine should get its own file
-// Then, world can access it
-// we can pass the flecs::world to Game::World on creation and it can handle creating the entities
-// each entitiy will have a mesh component and that's all
-// then Engine::run will handle the rendering of objects with a mesh component (basically a shared pointer to Graphics::Mesh), if the entity has a transform
-// it gets its own model index, otherwise the model index is zero
+// Shoudl be able to render without indices (wasted memory)
+// need to implement frustum culling and prefer to generate chunks in FOV
+// need to see where the bottleneck is
+
+// possibly some mesh optomizations
 
 struct Scene : Game::Scene
 {
@@ -72,6 +71,23 @@ struct Scene : Game::Scene
                 generating.erase(it);
 				it = std::find_if(generating.begin(), generating.end(), pred);
 			}
+
+			// Here we can delete chunks that are far enough away
+			// We want to delete locations, but only if there's an entity associated with it
+			std::vector<typename std::decay_t<decltype(locations)>::iterator> to_delete;
+			for (auto it = locations.begin(); it != locations.end(); it++)
+			{
+				if ( it->second && ( Math::length(it->first - player_chunk) > 5.f ) )
+				{
+					// we need to delete the entity at l.second
+					to_delete.push_back(it);
+					flecs::entity e(world.m_world, it->second);
+					e.destruct();
+				}
+			}
+			for (const auto& it : to_delete) locations.erase(it);
+
+			std::cout << "There are " << generating.size() << " generating chunks whereas " << locations.size() << " have already been generated\n";
 		});
 	}
 

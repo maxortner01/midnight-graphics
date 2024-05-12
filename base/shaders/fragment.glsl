@@ -14,6 +14,6 @@ float getScalar(float x, float r)
 
 void main() {
     float r = length(world_pos.xyz - player_pos);
-    outColor = fragColor * getScalar(r, 20);
+    outColor = fragColor * getScalar(r, 45);
     outColor.a = 1;
 }
