@@ -5,6 +5,7 @@ project(main C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(extern/VMA)
+add_subdirectory(extern/flecs)
 
 find_package(Vulkan REQUIRED)
 get_filename_component(VULKAN_PATH ${Vulkan_LIBRARIES} DIRECTORY)
@@ -41,11 +42,12 @@ add_executable(main
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 
     ${CMAKE_SOURCE_DIR}/game/World.cpp
+    ${CMAKE_SOURCE_DIR}/game/Engine.cpp
 
     ${CMAKE_SOURCE_DIR}/extern/v-hacd/include/VHACD.cpp
     ${SPIRV_REFLECT} ${SIMPLEX_NOISE}
 )
-target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
+target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua flecs::flecs_static)
 target_include_directories(main PRIVATE 
     ${CMAKE_SOURCE_DIR}/include 
     ${CMAKE_SOURCE_DIR}/include/midnight 

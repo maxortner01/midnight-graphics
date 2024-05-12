@@ -12,28 +12,32 @@ layout (location = 2) out vec4 world_pos;
 
 layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer Values
 {
-    float numbers[];
+    mat4 models[];
 };
 
-layout (std430, push_constant) uniform UniformObject
+layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer FrameInfo
 {
-    mat4 proj;
-    mat4 view;
-    mat4 model;
-    vec3 playerpos;
-    Values values;
-} ubo;
+    mat4 proj, view;
+    vec3 player_pos;
+};
+
+layout (std430, push_constant) uniform Constants
+{
+    uint index;
+    Values transforms;
+    FrameInfo frame_info;
+} constants;
 
 void main() {
     vec3 light_dir = vec3(0, -1, -0.5);
     
-    world_pos = ubo.model * vec4(position, 1.0);
-    gl_Position = ubo.proj * ubo.view * world_pos;
+    world_pos = constants.transforms.models[constants.index] * vec4(position, 1.0);
+    gl_Position = constants.frame_info.proj * constants.frame_info.view * world_pos;
     gl_Position.y *= -1;
     
-    player_pos = ubo.playerpos;
+    player_pos = constants.frame_info.player_pos;
     
     float val = max(dot(light_dir, normal), 0.0);
-    fragColor = vec4(val + 0.2) * color * ubo.values.numbers[0];
+    fragColor = vec4(val + 0.2) * color;
     fragColor.w = 1;
 }

@@ -9,6 +9,10 @@ namespace mn::Utility
     {
         friend T;
 
+        Singleton() = default;
+        Singleton(Singleton&&) = delete;
+        Singleton(const Singleton&) = delete;
+
         inline static std::shared_ptr<T> get()
         {
             if (!_instance) _instance = 

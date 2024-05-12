@@ -92,14 +92,10 @@ namespace mn::Math
 
         bool operator==(const Vec<C, T>& vec) const
         {
-            bool diff = false;
             for (uint32_t i = 0; i < C; i++)
                 if (c[i] != vec.c[i])
-                {
-                    diff = true;
-                    break;
-                }
-            return diff;
+                    return false;
+            return true;
         }
     };
 

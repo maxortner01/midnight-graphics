@@ -8,7 +8,5 @@
 #include "./Graphics/Buffer.hpp"
 #include "./Graphics/Model.hpp"
 
-#include "./Engine/Collision.hpp"
-
 #include "./Math/Vector.hpp"
 #include "./Math/Matrix.hpp"

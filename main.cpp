@@ -1,51 +1,127 @@
 #include <midnight/midnight.hpp>
 
+#include "game/Components.hpp"
 #include "game/World.hpp"
-
-#include <SDL3/SDL.h>
-
-#include <set>
-#include <stack>
-#include <thread>
-#include <atomic>
+#include "game/Engine.hpp"
 
 #ifndef SOURCE_DIR
 #define SOURCE_DIR "."
 #endif
 
-// GOALS
-// I want to be able to generate vertex arrays in the GPU with compute shaders
-//   As a first test, we can implement the meshing algorithm below in a compute shader
-//   then.. marching cubes
+// Engine should get its own file
+// Then, world can access it
+// we can pass the flecs::world to Game::World on creation and it can handle creating the entities
+// each entitiy will have a mesh component and that's all
+// then Engine::run will handle the rendering of objects with a mesh component (basically a shared pointer to Graphics::Mesh), if the entity has a transform
+// it gets its own model index, otherwise the model index is zero
 
-// Basic controls. Want to be able to fly around
-
-struct Constants
+struct Scene : Game::Scene
 {
-    mn::Math::Mat4<float> proj, view, model;
-	mn::Math::Vec3f player_pos;
-	mn::Graphics::Buffer::gpu_addr buffer;
+	flecs::entity box, camera;
+
+	Scene() :
+		_done(false)
+	{
+		using namespace Game;
+		using namespace mn;
+
+		World::get()->loadFromLua(SOURCE_DIR "/world.lua");
+		
+		camera = world.entity();
+		camera.set<Components::Camera>(Components::Camera { .far = 1000, .near = 0.01, .FOV = Math::Angle::degrees(75.f) });
+		camera.set<Components::Transform>({ });
+
+		box = world.entity();
+		box.set<Components::Mesh>(Components::Mesh { .model = std::make_shared<Graphics::Model>(Graphics::Model::fromLua(SOURCE_DIR "/models/cube.lua")) });
+		box.set<Components::Transform>(Components::Transform { .scale = Math::Vec3f{ 1.f, 1.f, 1.f } });
+	}
+
+	void update(double dt) override
+	{
+		using namespace Game;
+		using namespace mn;
+
+		Math::z(box.get_mut<Components::Transform>()->position) -= 0.45f * dt;
+
+		auto game_world = Game::World::get();
+		const auto& player_pos = camera.get<Components::Transform>()->position;
+        const auto player_chunk = Math::Vec3i({ 
+			(int32_t)(Math::x(player_pos) / game_world->chunkSize()), 
+			(int32_t)(Math::y(player_pos) / game_world->chunkSize()),
+			(int32_t)(Math::z(player_pos) / game_world->chunkSize()) 
+		});
+
+		game_world->checkChunks(player_chunk);
+
+		game_world->useAllData([&](auto& generating, auto& locations)
+		{
+			const auto pred = [](const auto& g) { return g->finished; };
+			auto it = std::find_if(generating.begin(), generating.end(), pred);
+			while (it != generating.end())
+			{
+				MIDNIGHT_ASSERT((*it)->chunk->model, "Error loading model");
+				// take it->chunk and create entity with it->chunk.model as its mesh
+				auto entity = world.entity();
+				entity.set<Components::Mesh>(Components::Mesh { .model = (*it)->chunk->model });
+
+				// then std::find(locations) for it->chunk.location and store the entity id
+				const auto loc = std::find_if(locations.begin(), locations.end(), [&](const auto& loc) { return loc.first == (*it)->chunk->location; });
+				MIDNIGHT_ASSERT(loc != locations.end(), "Location not found!");
+				loc->second = entity.id();
+
+                generating.erase(it);
+				it = std::find_if(generating.begin(), generating.end(), pred);
+			}
+		});
+	}
+
+	void destroy() override
+	{
+		Game::World::destroy();
+	}
+
+	void finish() override
+	{
+		// request close
+		_done = true;
+	}
+
+	bool done() override
+	{
+		return _done;
+	}
+
+private:
+	bool _done;
 };
 
 int main()
+{
+	{
+		auto engine = Game::Engine::get();
+		engine->start("window.lua", []() { return new Scene(); });
+	}
+	Game::Engine::destroy();
+}
+
+/*
+void main2()
 {
     using namespace mn;
     using namespace mn::Graphics;
 
     auto window = Window::fromLuaScript("window.lua");
 
-	// maube instead of here we instead specify the size and count inside the actual
-	// descriptor set, that way we can build/rebuild the buffers if needed on the fly
-
-	// We need to rewrite pipeline.cpp
-	// Let's take a step back from shader reflection and have the user specify the information
-	// Firstly, 
     auto pipeline = PipelineBuilder::fromLua(SOURCE_DIR, "/pipelines/main.lua")
 		.setPushConstantObject<Constants>()
         .build();
 
-	Buffer data;
-	data.allocateBytes(sizeof(float));
+	TypeBuffer<FrameInfo> frame_info;
+	frame_info.resize(1);
+
+	Vector<mn::Math::Mat4<float>> models;
+	models.push_back(Math::identity<4, float>());
+	models.push_back(Math::identity<4, float>());
 
 	Model cube = Model::fromLua(SOURCE_DIR "/models/cube.lua");
 
@@ -56,19 +132,15 @@ int main()
 	auto player_rot = Math::Vec3<Math::Angle>({ Math::Angle::radians(0), Math::Angle::radians(0), Math::Angle::radians(0) });
 
     const auto aspect = static_cast<float>(Math::x(window.size())) / static_cast<float>(Math::y(window.size()));
-	const auto set_view = [&](const auto& frame, const auto& pipeline, Math::Vec3f scale, Math::Vec3f position)
+	const auto set_view = [&](const auto& frame, const auto& pipeline, uint32_t index)
 	{
 		Constants c;
-        //auto& uniform = pipeline.template descriptorData<Uniform>(0, 0);
-        c.proj  = Math::perspective(aspect, Math::Angle::degrees(75), { 0.1, 1000.0 });
-		c.model = Math::scale(scale) * Math::translation(position);
-        c.view  = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
-		c.player_pos = player_pos;
-		c.buffer = data.getAddress();
+		c.buffer = models.getAddress();
+		c.frame_info = frame_info.getAddress();
+		c.index  = index;
 		frame.setPushConstant(pipeline, c);
 	};	
 
-	// we want to be able to do multiple uniform bindings
 	// we want to be able to stage buffer data so it's not mapped
 
     uint32_t frameCount = 0;
@@ -77,15 +149,6 @@ int main()
 	std::set<SDL_Scancode> keys;
 	bool constrained = true;
 	SDL_SetRelativeMouseMode(SDL_TRUE);
-
-	// cool... how do we do mesh independent positions?
-	// looks like we need a way of allocating a variable amount of descriptor sets
-	// So, ideally we can infer from a shader what kinds of descriptor sets there are
-	// Then we want to be able to specify things like, hey make only one of binding 1
-	// but 20 of binding 2. Then, we can bind the correct ones(?)
-	// Or maybe we just have the user handle descriptor sets? Need to flesh this out ASAP
-	// Should be able to specify count and bytesize per binding
-	// then we can choose the binding indexes we want
 
 	// next up: basic collisions (fcl) and physics
 	auto cube_pos = Math::Vec3f({ 0.f, 9.f, -1.f });
@@ -132,6 +195,13 @@ int main()
 
         window.finishWork();
 
+		{
+			auto& info = frame_info[0];
+			info.proj  = Math::perspective(aspect, Math::Angle::degrees(75), { 0.1, 1000.0 });
+			info.view  = Math::translation(player_pos * -1.f) * Math::rotation<float>(player_rot);
+			info.player_pos = player_pos;
+		}
+
         const auto player_chunk = Math::Vec3i({ 
 			(int32_t)(Math::x(player_pos) / world->chunkSize()), 
 			(int32_t)(Math::y(player_pos) / world->chunkSize()),
@@ -148,11 +218,11 @@ int main()
 			{
 				frame.startRender();
 
-				set_view(frame, pipeline, Math::Vec3f{ 1.f,   1.f,   1.f    }, Math::Vec3f{0.f, 0.f, 0.f});
+				set_view(frame, pipeline, 0);
 				for (const auto& chunk : chunks)
 					frame.draw(pipeline, chunk->model);
 
-				set_view(frame, pipeline, Math::Vec3f{ 0.25f, 0.25f, 0.25f, }, cube_pos);
+				set_view(frame, pipeline, 1);
 				frame.draw(pipeline, cube); // need to be able to specify binding 0, index 0 && binding 1, index 1
 					
 				frame.endRender();
@@ -168,7 +238,6 @@ int main()
         window.setTitle((std::stringstream() << std::fixed << std::setprecision(2) << (1.0 / dt.count()) << " fps").str());
         now = new_now;
 
-		/* Collision checking */
 		// For every vertex, check if it's inside the world
 		Math::Vec3f normal;
 		const auto model = Math::scale(Math::Vec3f{ 0.25f, 0.25f, 0.25f, }) * Math::translation(cube_pos);
@@ -194,6 +263,8 @@ int main()
 		}
 
 		cube_pos += cube_vel * dt.count();
+
+		models[1] = Math::scale(Math::Vec3f{ 0.25f, 0.25f, 0.25f }) * Math::translation(cube_pos);
 
 		Math::x(player_rot) -= Math::Angle::radians(Math::y(mouse_movement) * dt.count());
 		Math::y(player_rot) -= Math::Angle::radians(Math::x(mouse_movement) * dt.count());
@@ -230,3 +301,4 @@ int main()
 	world->finish();
 	Game::World::destroy();
 }
+*/

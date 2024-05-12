@@ -19,3 +19,6 @@
 [submodule "extern/v-hacd"]
 	path = extern/v-hacd
 	url = https://github.com/kmammou/v-hacd
+[submodule "extern/flecs"]
+	path = extern/flecs
+	url = https://github.com/SanderMertens/flecs

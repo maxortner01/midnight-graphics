@@ -2,8 +2,9 @@
 
 #include <SimplexNoise.h>
 #include <SL/Lua.hpp>
-
 #include <VHACD.h>
+
+#include <future>
 
 #ifndef SOURCE_DIR
 #define SOURCE_DIR "."
@@ -104,18 +105,30 @@ void World::loadFromLua(const std::string& dir)
     {
         while (!done)
         {
-            if (!generate_chunks.size()) continue;
-
             generate_mutex.lock();
-            auto chunk = generate_chunks.back();
-            generate_chunks.pop_back();
+            const auto it = std::find_if(generating.begin(), generating.end(), [](const auto& p) { return !p->chosen; });
+            if (it == generating.end()) 
+            {
+                generate_mutex.unlock();
+                continue;
+            }
+
+            //auto chunk = generate_chunks.back();
+            //generate_chunks.pop_back();
+            auto p = *it;
+            p->chosen = true;
             generate_mutex.unlock();
 
-            this->generate_mesh(chunk);
+            auto model = this->generate_mesh(p->chunk);
 
+            /*
             chunk_mutex.lock();
             chunks.push_back(chunk);
-            chunk_mutex.unlock();
+            chunk_mutex.unlock();*/
+            generate_mutex.lock();
+            p->chunk->model = model;
+            p->finished = true; // finished = true
+            generate_mutex.unlock();
         }
     };
 
@@ -135,56 +148,33 @@ void World::checkChunks(const mn::Math::Vec3i& player_chunk)
     using namespace mn;
 
     generate_mutex.lock();
+    location_mutex.lock();
     for (const auto& r : radius)
     {
         const auto pos = player_chunk + r;
+        MIDNIGHT_ASSERT((Math::Vec3f{ 1.f, 0.f, 0.f } == Math::Vec3f{ 1.f, 0.f, 0.f }), "test");
+        
         // check if chunk in chunks
-        bool found = false;
-        for (const auto& chunk : chunks)
-            if (Math::x(chunk->location) == Math::x(pos) && 
-                Math::y(chunk->location) == Math::y(pos) &&
-                Math::z(chunk->location) == Math::z(pos))
-            {
-                found = true;
-                break;
-            }
+        const auto it = std::find_if(locations.begin(), locations.end(), 
+            [&](const auto& location) 
+            { return location.first == pos; });
 
-        if (!found)
+        if (it == locations.end()) 
         {
-            for (const auto& chunk : generate_chunks)
-                if (Math::x(chunk->location) == Math::x(pos) && 
-                    Math::y(chunk->location) == Math::y(pos) &&
-                    Math::z(chunk->location) == Math::z(pos))
-                {
-                    found = true;
-                    break;
-                }
+            generating.push_back(std::make_shared<Generating>(Generating { .chunk = std::make_shared<Chunk>(pos), .chosen = false, .finished = false }));
+            locations.push_back(std::pair(pos, 0U));
         }
-
-        if (!found) 
-            generate_chunks.insert(generate_chunks.begin(), std::make_shared<Chunk>(pos));
     }
-
-    // prioritize the chunks closest tot he player
-    std::sort(generate_chunks.begin(), generate_chunks.end(), [player_chunk](const auto& a, const auto& b) { return Math::length(b->location - player_chunk) < Math::length(a->location - player_chunk); });
-    // cull the chunks that are far enough away
-    std::erase_if(generate_chunks, [player_chunk](const auto& a) { return Math::length(a->location - player_chunk) >= 4; });
-
-    chunk_mutex.lock();
-    // cull the ones far enough away
-    std::erase_if(chunks, [player_chunk](const auto& a) { return Math::length(a->location - player_chunk) >= 3; });
-    chunk_mutex.unlock();
-
+    location_mutex.unlock();
     generate_mutex.unlock();
+
+    generate_mutex.lock();
+    std::sort(generating.begin(), generating.end(), [player_chunk](const auto& a, const auto& b) { return Math::length(a->chunk->location - player_chunk) < Math::length(b->chunk->location - player_chunk); });
+    generate_mutex.unlock();
+
 }
 
-void World::useChunks(const std::function<void(const std::vector<std::shared_ptr<Chunk>>&)>& func)
-{
-    std::lock_guard lock(chunk_mutex);
-    func(chunks);
-}
-
-void World::generate_mesh(std::shared_ptr<Chunk> chunk)
+std::shared_ptr<mn::Graphics::Model> World::generate_mesh(std::shared_ptr<Chunk> chunk)
 {
     const auto chunk_index = chunk->location;
     START_TIMER(main);
@@ -324,7 +314,7 @@ void World::generate_mesh(std::shared_ptr<Chunk> chunk)
 	std::cout << "  Vertex count: " << frame.vertices.size() << " (" << frame.vertices.size() * sizeof(Model::Vertex) * 1e-6 << ") MB\n";
 	std::cout << "  Index count:  " << frame.indices.size() << " (" << frame.indices.size() * sizeof(uint32_t) * 1e-6 << ") MB\n\n";
 
-    chunk->model = std::make_shared<Model>(Model::fromFrame(frame));
+    return std::make_shared<Model>(Model::fromFrame(frame));
 }
 
 

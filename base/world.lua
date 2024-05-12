@@ -1,6 +1,6 @@
 World = {
     Workers = 3,
-    ChunkCells = 25,
+    ChunkCells = 30,
     CellWidth = 0.35,
     Radius = {}
 };

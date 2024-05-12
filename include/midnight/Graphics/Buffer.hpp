@@ -73,4 +73,88 @@ namespace mn::Graphics
             this->rawResize(count * sizeof(T));
         }
     };
+
+    template<typename T>
+    struct Vector 
+    {
+        Vector() : count{0} { }
+
+        Vector(uint32_t elements)
+        {
+            resize(elements);
+        }
+
+        uint32_t size() const
+        {
+            return count;
+        }
+
+        Buffer::gpu_addr getAddress() const
+        {
+            return memory.getAddress();
+        }
+
+        void reserve(const uint32_t& count)
+        {
+            // If count < this->count, we need to call the destructors
+            for (uint32_t i = count; i < this->count; i++)
+                reinterpret_cast<T*>(memory.rawData() + i * sizeof(T))->~T();
+
+            memory.allocateBytes(count * sizeof(T));
+        }
+
+        void resize(const uint32_t& count)
+        {
+            // If count < this->count, we need to call the destructors
+            for (uint32_t i = count; i < this->count; i++)
+                reinterpret_cast<T*>(memory.rawData() + i * sizeof(T))->~T();
+
+            memory.allocateBytes(count * sizeof(T));
+
+            // default construct each object in the new region
+            for (uint32_t i = this->count; i < count; i++)
+                new(memory.rawData() + i * sizeof(T)) T();
+
+            this->count = count;
+        }
+
+        void push_back(const T& value)
+        {
+            if (count == memory.allocated() / sizeof(T))
+                reserve((memory.allocated() / sizeof(T) + 5) * 1.75f * sizeof(T));
+            new(memory.rawData() + count * sizeof(T)) T(value);
+        }   
+
+        template<typename... Args>
+        void emplace_back(Args&&... args)
+        {
+            if (count == memory.allocated() / sizeof(T))
+                reserve((memory.allocated() / sizeof(T) + 5) * 1.75f * sizeof(T));
+            new(memory.rawData() + count * sizeof(T)) T(std::forward<Args>(args)...);
+        }
+
+        T& at(uint32_t index)
+        {
+            return *reinterpret_cast<T*>(memory.rawData() + index * sizeof(T));
+        }
+
+        const T& at(uint32_t index) const
+        {
+            return const_cast<Vector<T>*>(this)->at(index);
+        }
+
+        T& operator[](uint32_t index)
+        {
+            return at(index);
+        }
+
+        const T& operator[](uint32_t index) const
+        {
+            return at(index);
+        }
+
+    private:
+        uint32_t count;
+        Buffer memory;
+    };
 }
