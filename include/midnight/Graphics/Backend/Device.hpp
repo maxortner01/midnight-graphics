@@ -35,7 +35,7 @@ namespace mn::Graphics::Backend
         mn::handle_t   getPhysicalDevice() const { return physical_device; }
         Queue          getGraphicsQueue() const { return graphics; }
 
-        std::tuple<handle_t, std::vector<handle_t>, uint32_t, std::pair<uint32_t, uint32_t>>  
+        std::tuple<handle_t, std::vector<handle_t>, uint32_t, Math::Vec2u>  
         createSwapchain(Handle<Window> window, mn::handle_t surface) const;
         
         std::vector<mn::handle_t> getSwapchainImages(mn::handle_t swapchain) const;

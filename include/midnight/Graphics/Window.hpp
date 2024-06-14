@@ -6,6 +6,7 @@
 #include <Graphics/Backend/Command.hpp>
 #include <Graphics/Backend/Sync.hpp>
 
+#include "Event.hpp"
 #include "RenderFrame.hpp"
 
 namespace mn::Graphics
@@ -23,6 +24,7 @@ namespace mn::Graphics
 
     struct Window
     {
+        Window(const Math::Vec2u& size, const std::string& name);
         Window(const std::string& config_file = "");
 
         static Window fromLuaScript(const std::string& config_file);
@@ -33,6 +35,8 @@ namespace mn::Graphics
         ~Window();
 
         void close();
+
+        bool pollEvent(Event& event) const;
 
         auto size() const { return _size; }
         
@@ -45,6 +49,8 @@ namespace mn::Graphics
         void finishWork() const;
 
     private:
+        void _open(const Math::Vec2u& size, const std::string& name);
+
         uint32_t next_image_index() const;
 
         bool _close;

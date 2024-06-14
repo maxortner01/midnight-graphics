@@ -42,15 +42,15 @@ void RenderFrame::startRender()
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_attach,
         .pDepthAttachment = ( depth_attach.has_value() ? &(*depth_attach) : nullptr ),
-        .renderArea = { 0, 0, image->size().first, image->size().second }
+        .renderArea = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) }
     };
 
     const auto command_buffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-    VkRect2D sc = { 0, 0, image->size().first, image->size().second };
+    VkRect2D sc = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) };
     vkCmdSetScissor(command_buffer, 0, 1, &sc);
 
-    VkViewport extent = { .x = 0, .y = 0, .width = static_cast<float>(image->size().first), .height = static_cast<float>(image->size().second), .minDepth = 0, .maxDepth = 1.f };
+    VkViewport extent = { .x = 0, .y = 0, .width = static_cast<float>(Math::x(image->size())), .height = static_cast<float>(Math::y(image->size())), .minDepth = 0, .maxDepth = 1.f };
     vkCmdSetViewport(command_buffer, 0, 1, &extent);
 
     auto& device = Backend::Instance::get()->getDevice();

@@ -190,17 +190,17 @@ namespace mn::Math
 
     template<typename T>
     using Vec2 = Vec<2, T>;
-    using Vec2f = Vec2<float>;
-    using Vec2u = Vec2<uint32_t>;
-    using Vec2i = Vec2<int32_t>;
+    using Vec2f = Vec2<r32>;
+    using Vec2u = Vec2<u32>;
+    using Vec2i = Vec2<i32>;
 
     template<typename T>
     using Vec3 = Vec<3, T>;
-    using Vec3f = Vec3<float>;
-    using Vec3u = Vec3<uint32_t>;
-    using Vec3i = Vec3<int32_t>;
+    using Vec3f = Vec3<r32>;
+    using Vec3u = Vec3<u32>;
+    using Vec3i = Vec3<i32>;
 
     template<typename T>
     using Vec4 = Vec<4, T>;
-    using Vec4f = Vec4<float>;
+    using Vec4f = Vec4<r32>;
 }

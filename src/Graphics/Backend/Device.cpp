@@ -152,7 +152,7 @@ Device::~Device()
     }
 }
 
-std::tuple<handle_t, std::vector<handle_t>, uint32_t, std::pair<uint32_t, uint32_t>> 
+std::tuple<handle_t, std::vector<handle_t>, uint32_t, Math::Vec2u> 
 Device::createSwapchain(Handle<Window> window, handle_t surface) const
 {
     MIDNIGHT_ASSERT(handle, "Device invalid");
@@ -217,7 +217,7 @@ Device::createSwapchain(Handle<Window> window, handle_t surface) const
         static_cast<handle_t>(swapchain), 
         getSwapchainImages(swapchain), 
         static_cast<uint32_t>(surfaceFormats[0].format), 
-        std::pair(w, h));
+        Math::Vec2u{ w, h });
 }
 
 std::vector<handle_t> Device::getSwapchainImages(handle_t swapchain) const

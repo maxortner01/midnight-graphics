@@ -5,7 +5,6 @@ project(main C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(extern/VMA)
-add_subdirectory(extern/flecs)
 
 find_package(Vulkan REQUIRED)
 get_filename_component(VULKAN_PATH ${Vulkan_LIBRARIES} DIRECTORY)
@@ -21,9 +20,6 @@ add_subdirectory(extern/simple-lua)
 set(SPIRV_REFLECT
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
-
-set(SIMPLEX_NOISE
-    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src/SimplexNoise.cpp)
 
 add_executable(main 
     main.cpp
@@ -41,18 +37,10 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 
-    ${CMAKE_SOURCE_DIR}/game/World.cpp
-    ${CMAKE_SOURCE_DIR}/game/Engine.cpp
-
-    ${CMAKE_SOURCE_DIR}/extern/v-hacd/include/VHACD.cpp
-    ${SPIRV_REFLECT} ${SIMPLEX_NOISE}
+    ${SPIRV_REFLECT}
 )
-target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua flecs::flecs_static)
+target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
 target_include_directories(main PRIVATE 
     ${CMAKE_SOURCE_DIR}/include 
     ${CMAKE_SOURCE_DIR}/include/midnight 
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect
-    ${CMAKE_SOURCE_DIR}/extern/SimplexNoise/src
-    ${CMAKE_SOURCE_DIR}/extern/v-hacd/include)
-
-target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/base")
+    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
