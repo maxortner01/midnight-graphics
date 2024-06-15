@@ -3,11 +3,18 @@
 #include <Graphics/Backend/Instance.hpp>
 
 // Hack to get rid of annoying warnings from VMA
+
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnullability-completeness"
+#endif 
+
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
 namespace mn::Graphics
 {
@@ -52,8 +59,8 @@ namespace mn::Graphics
         };
 
         VmaAllocationCreateInfo alloc_create_info = {
-            .usage = VMA_MEMORY_USAGE_AUTO,
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO
         };
 
         const auto allocator = static_cast<VmaAllocator>(Backend::Instance::get()->getAllocator());
@@ -83,8 +90,8 @@ namespace mn::Graphics
 
         VkBufferDeviceAddressInfoKHR addr_info {
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
-            .buffer = handle.as<VkBuffer>(),
-            .pNext = nullptr
+            .pNext = nullptr,
+            .buffer = handle.as<VkBuffer>()
         };
 
         PFN_vkVoidFunction pvkGetBufferDeviceAddressKHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkGetBufferDeviceAddressKHR");

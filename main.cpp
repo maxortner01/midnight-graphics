@@ -34,10 +34,7 @@ int main()
 {
 	using namespace mn;
 
-	Graphics::Image image(109, { 1280U, 720U }, false);
-
-	/*
-	Graphics::Window window({ 1280U, 720U }, "Hello");
+	Graphics::Window window(Math::Vec2u{ 1280U, 720U }, "Hello");
 	EventVisitor v(window);
 
 	while (!window.shouldClose())
@@ -48,5 +45,5 @@ int main()
 
 		auto rf = window.startFrame();
 		window.endFrame(rf);
-	}*/
+	}
 }

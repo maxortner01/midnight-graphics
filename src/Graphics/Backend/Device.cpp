@@ -56,6 +56,9 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
     {
         std::vector<const char*> enabledExtensions;
         std::vector<const char*> requiredExtensions = { 
+#ifdef __APPLE__
+            "VK_KHR_portability_subset",
+#endif
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, 
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 
             VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, 
@@ -64,8 +67,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
             VK_KHR_DEVICE_GROUP_EXTENSION_NAME,
             VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
             VK_KHR_MULTIVIEW_EXTENSION_NAME,
-            VK_KHR_MAINTENANCE2_EXTENSION_NAME,
-            "VK_KHR_portability_subset"
+            VK_KHR_MAINTENANCE2_EXTENSION_NAME
         };
 
         uint32_t count;
@@ -98,17 +100,17 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
     };
 
     VkPhysicalDeviceSynchronization2Features sync = {
-        .pNext = &dynamic_render,
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+        .pNext = &dynamic_render,
         .synchronization2 = VK_TRUE
     };
 
     VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
+        .pNext = &sync,
         .bufferDeviceAddress = VK_TRUE,
         .bufferDeviceAddressCaptureReplay = VK_FALSE,
         .bufferDeviceAddressMultiDevice = VK_FALSE,
-        .pNext = &sync
     };
 
     VkPhysicalDeviceFeatures features = {
@@ -118,14 +120,14 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = &buffer_device,
-        .pEnabledFeatures = &features,
         .flags = 0,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queue_create,
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
         .enabledExtensionCount   = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = nullptr
+        .pEnabledFeatures = &features,
     };
 
     VkDevice _device;
@@ -193,12 +195,11 @@ Device::createSwapchain(Handle<Window> window, handle_t surface) const
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = nullptr,
         .flags = 0,
-        .oldSwapchain = nullptr,
-        .minImageCount = capabilities.minImageCount,
         .surface = vk_surface,
-        .imageExtent = VkExtent2D{ .width = w, .height = h },
+        .minImageCount = capabilities.minImageCount,
         .imageFormat = surfaceFormats[0].format,
         .imageColorSpace = surfaceFormats[0].colorSpace,
+        .imageExtent = VkExtent2D{ .width = w, .height = h },
         .imageArrayLayers = 1,
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .queueFamilyIndexCount = 1,
@@ -206,7 +207,8 @@ Device::createSwapchain(Handle<Window> window, handle_t surface) const
         .preTransform = capabilities.currentTransform,
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = VK_PRESENT_MODE_FIFO_KHR,
-        .clipped = VK_TRUE
+        .clipped = VK_TRUE,
+        .oldSwapchain = nullptr
     };
 
     VkSwapchainKHR swapchain;
@@ -244,14 +246,14 @@ std::pair<Handle<Image>, mn::handle_t> Device::createImage(const Math::Vec2u& si
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .format = static_cast<VkFormat>(format),
-        .usage = static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
-        .extent = { .depth = 1, .width = Math::x(size), .height = Math::y(size) },
         .imageType = VK_IMAGE_TYPE_2D,
+        .format = static_cast<VkFormat>(format),
+        .extent = { .width = Math::x(size), .height = Math::y(size), .depth = 1,  },
         .mipLevels = 1,
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
-        .tiling = VK_IMAGE_TILING_OPTIMAL
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
     };
 
     VmaAllocationCreateInfo alloc_create_info = {
@@ -281,9 +283,9 @@ mn::handle_t Device::createImageView(Handle<Image> image, uint32_t format, bool 
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .format = static_cast<VkFormat>(format),
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .image = image.as<VkImage>(),
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = static_cast<VkFormat>(format),
         .components = {
             .r = VK_COMPONENT_SWIZZLE_IDENTITY,
             .g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -291,7 +293,7 @@ mn::handle_t Device::createImageView(Handle<Image> image, uint32_t format, bool 
             .a = VK_COMPONENT_SWIZZLE_IDENTITY
         },
         .subresourceRange = {
-            .aspectMask = (depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT),
+            .aspectMask = static_cast<VkImageAspectFlags>(depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT),
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
@@ -343,8 +345,8 @@ Handle<CommandBuffer> Device::createCommandBuffer(Handle<CommandPool> command_po
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = nullptr,
         .commandPool = static_cast<VkCommandPool>(command_pool),
-        .commandBufferCount = 1,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1
     };
 
     VkCommandBuffer buff;

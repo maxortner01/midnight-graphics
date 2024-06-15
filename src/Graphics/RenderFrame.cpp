@@ -23,26 +23,28 @@ void RenderFrame::startRender()
 
     if (image->getDepthImageView())
     {
-        depth_attach.emplace(VkRenderingAttachmentInfo{
+        auto attachment_info = VkRenderingAttachmentInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
             .imageView = image->getDepthImageView().as<VkImageView>(),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue.depthStencil.depth = 1
-        });
+            .clearValue = { .depthStencil = { .depth = 1 } }
+        };
+
+        depth_attach.emplace(attachment_info);
     }
 
     VkRenderingInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .pNext = nullptr,
         .flags = 0,
+        .renderArea = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) },
         .layerCount = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_attach,
-        .pDepthAttachment = ( depth_attach.has_value() ? &(*depth_attach) : nullptr ),
-        .renderArea = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) }
+        .pDepthAttachment = ( depth_attach.has_value() ? &(*depth_attach) : nullptr )
     };
 
     const auto command_buffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();

@@ -2,6 +2,7 @@
 
 #include <Def.hpp>
 
+#include <array>
 #include <initializer_list>
 
 namespace mn::Math
@@ -14,6 +15,11 @@ namespace mn::Math
         Vec()
         {
             std::memset(c, 0, sizeof(c));
+        }
+
+        Vec(const std::array<T, C>& vals)
+        {
+            std::uninitialized_copy(vals.begin(), vals.end(), &c[0]);
         }
 
         template<typename A>

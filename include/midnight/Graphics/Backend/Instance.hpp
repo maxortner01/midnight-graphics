@@ -19,7 +19,7 @@ namespace mn::Graphics::Backend
 
     struct Instance : Utility::Singleton<Instance>
     {
-        friend class Singleton<Instance>;
+        friend struct Singleton<Instance>;
 
         mn::handle_t createSurface(Handle<Window> window) const;
         void destroySurface(mn::handle_t surface) const;

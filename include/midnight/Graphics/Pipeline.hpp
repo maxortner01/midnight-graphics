@@ -32,8 +32,8 @@ namespace mn::Graphics
 
         struct Attribute
         {
-            uint32_t element_count, element_size, format;
-            uint8_t binding = 0;
+            u32 element_count, element_size, format;
+            u8 binding = 0;
         };
 
         Shader();

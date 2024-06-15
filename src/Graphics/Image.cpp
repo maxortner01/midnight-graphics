@@ -8,7 +8,8 @@ namespace mn::Graphics
     Image::Image(u32 format, const Math::Vec2u& size, bool depth) :
         _format(format),
         _size(size),
-        depth_allocation{0}
+        depth_allocation{0},
+        image_allocation{0}
     {
         auto& device = Backend::Instance::get()->getDevice();
         std::tie(handle, image_allocation) = device->createImage(size, format);
@@ -25,7 +26,8 @@ namespace mn::Graphics
         ObjectHandle(h),
         _format(f),
         _size(s),
-        depth_allocation{0}
+        depth_allocation{0},
+        image_allocation{0}
     {   
         auto& device = Backend::Instance::get()->getDevice();
         color_view = device->createImageView(h, f);

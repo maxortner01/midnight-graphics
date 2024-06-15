@@ -9,7 +9,17 @@ add_subdirectory(extern/VMA)
 find_package(Vulkan REQUIRED)
 get_filename_component(VULKAN_PATH ${Vulkan_LIBRARIES} DIRECTORY)
 
-find_library(SHADERC shaderc_combined HINTS ${VULKAN_PATH})
+find_library(SHADERC shaderc_combinedd HINTS ${VULKAN_PATH})
+if (NOT SHADERC)
+    find_library(SHADERC shaderc_combined HINTS ${VULKAN_PATH})
+
+    if (NOT SHADERC)
+        message(FATAL_ERROR "No version of shaderc found")
+    endif()
+
+else()
+    message("Using shaderc_combinedd")
+endif()
 
 message("Using Vulkan version ${Vulkan_VERSION}")
 
