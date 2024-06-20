@@ -3,3 +3,5 @@ build
 .vscode
 region.cpp
 plane.cpp
+tests
+main.cpp
