@@ -116,16 +116,28 @@ void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) co
     pipeline.setPushConstant(frame_data->command_buffer, data);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index) const
+void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices) const
 {
-    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
-
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
     vkCmdBindPipeline(
         cmdBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline.getHandle().as<VkPipeline>());
+
+    vkCmdDraw(
+        cmdBuffer,
+        vertices,
+        1, 
+        0,
+        0);
+}
+
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const
+{
+    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
+
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
     const auto buff = buffer->getHandle().as<VkBuffer>();
     VkDeviceSize off = 0;
@@ -136,30 +148,25 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer,
         &buff,
         &off);
 
-    vkCmdDraw(
-        cmdBuffer,
-        buffer->vertices(),
-        1, 
-        0,
-        0);
+    draw(pipeline, buffer->vertices());
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, const Model& model, uint32_t desc_index) const
+void RenderFrame::draw(const Pipeline& pipeline, const Model& model) const
 {
     if (!model.vertexCount()) return;
 
     if (model.indexCount())
-        drawIndexed(pipeline, model.vertex, model.index, desc_index);
+        drawIndexed(pipeline, model.vertex, model.index);
     else
-        draw(pipeline, model.vertex, desc_index);
+        draw(pipeline, model.vertex);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t desc_index) const
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const
 {
-    draw(pipeline, *model, desc_index);
+    draw(pipeline, *model);
 }
 
-void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index) const
+void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const
 {
     MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
 

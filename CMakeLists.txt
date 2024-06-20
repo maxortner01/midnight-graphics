@@ -31,8 +31,7 @@ set(SPIRV_REFLECT
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
 
-add_executable(main 
-    main.cpp
+add_library(midnight-graphics SHARED
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Device.cpp
     ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Command.cpp
@@ -47,10 +46,17 @@ add_executable(main
 
     ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
 
-    ${SPIRV_REFLECT}
-)
-target_link_libraries(main PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
-target_include_directories(main PRIVATE 
+    ${SPIRV_REFLECT})
+
+target_link_libraries(midnight-graphics PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
+target_include_directories(midnight-graphics PRIVATE 
     ${CMAKE_SOURCE_DIR}/include 
     ${CMAKE_SOURCE_DIR}/include/midnight 
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
+
+add_executable(main main.cpp)
+target_link_libraries(main PRIVATE midnight-graphics)
+target_include_directories(main PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include/midnight)
+target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/tests")

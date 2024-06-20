@@ -31,11 +31,12 @@ namespace mn::Graphics
             setPushConstant(pipeline, reinterpret_cast<const void*>(&value));
         }
 
-        void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t desc_index = 0) const;
-        void draw(const Pipeline& pipeline, const Model& model, uint32_t desc_index = 0) const;
-        void draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t desc_index = 0) const;
+        void draw(const Pipeline& pipeline, uint32_t vertices) const;
+        void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
+        void draw(const Pipeline& pipeline, const Model& model) const;
+        void draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const;
 
-        void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t desc_index = 0) const;
+        void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const;
 
     private:
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }

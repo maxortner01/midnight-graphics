@@ -5,6 +5,7 @@
 
 #include <Def.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <cassert>
 #include <exception>
@@ -100,25 +101,31 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
         std::vector<SpvReflectInterfaceVariable*> vars(input_count);
         spvReflectEnumerateInputVariables(&shader_mod, &input_count, vars.data());
 
-        attributes.emplace(std::vector<Attribute>());
-        for (const auto* var : vars)
-        {
-            uint32_t member_count = 0;
-            if (var->format >= 98 && var->format <= 100)
-                member_count = 1;
-            if (var->format >= 101 && var->format <= 103)
-                member_count = 2;
-            if (var->format >= 104 && var->format <= 106)
-                member_count = 3;
-            if (var->format >= 107 && var->format <= 109)
-                member_count = 4;
+        // this is a crappy way of doing this
+        std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_VertexIndex") != std::string::npos); });
 
-            attributes->push_back(Attribute {
-                .element_count = member_count,
-                .element_size = sizeof(float),
-                .format = static_cast<uint32_t>(var->format),
-                .binding = 0
-            });
+        if (vars.size())
+        {
+            attributes.emplace(std::vector<Attribute>()); 
+            for (const auto* var : vars)
+            {
+                uint32_t member_count = 0;
+                if (var->format >= 98 && var->format <= 100)
+                    member_count = 1;
+                if (var->format >= 101 && var->format <= 103)
+                    member_count = 2;
+                if (var->format >= 104 && var->format <= 106)
+                    member_count = 3;
+                if (var->format >= 107 && var->format <= 109)
+                    member_count = 4;
+
+                attributes->push_back(Attribute {
+                    .element_count = member_count,
+                    .element_size = sizeof(float),
+                    .format = static_cast<uint32_t>(var->format),
+                    .binding = 0
+                });
+            }
         }
 
         spvReflectDestroyShaderModule(&shader_mod);
@@ -453,7 +460,6 @@ Pipeline PipelineBuilder::build() const
     {
         const auto& shader = modules.at(ShaderType::Vertex);
         const auto& attributes = shader->getAttributes();  
-        
 
         uint32_t offset = 0;
         uint32_t location = 0;
@@ -470,7 +476,7 @@ Pipeline PipelineBuilder::build() const
         }
 
         input_state.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribs.size());
-        input_state.pVertexAttributeDescriptions = attribs.data();
+        input_state.pVertexAttributeDescriptions = ( attribs.size() ? attribs.data() : nullptr );
 
         binding = VkVertexInputBindingDescription {
             .binding = 0,
@@ -478,7 +484,7 @@ Pipeline PipelineBuilder::build() const
             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
         };
 
-        input_state.vertexBindingDescriptionCount = 1;
+        input_state.vertexBindingDescriptionCount = ( attribs.size() ? 1 : 0 );
         input_state.pVertexBindingDescriptions = &binding;
     }
 

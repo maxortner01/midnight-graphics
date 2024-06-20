@@ -287,6 +287,7 @@ Window::~Window()
 {
     if (handle)
     {
+	    finishWork();
         {
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
