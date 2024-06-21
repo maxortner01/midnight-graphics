@@ -1,13 +1,16 @@
 #pragma once
 
+#include <Math.hpp>
+
 #include "ObjectHandle.hpp"
 
 namespace mn::Graphics
 {
     struct Image : ObjectHandle<Image>
     {
-        Image(Handle<Image> h, uint32_t f, std::pair<uint32_t, uint32_t> s, bool depth = true);
-        ~Image();
+        MN_SYMBOL Image(u32 format, const Math::Vec2u& size, bool depth = true);
+        MN_SYMBOL Image(Handle<Image> h, u32 f, const Math::Vec2u& s, bool depth = true);
+        MN_SYMBOL ~Image();
 
         auto size()   const { return _size;   }
         auto format() const { return _format; }
@@ -17,9 +20,9 @@ namespace mn::Graphics
         auto getDepthImage() const { return depth_image; }
 
     private:
-        mn::handle_t depth_allocation;
+        mn::handle_t image_allocation, depth_allocation;
         Handle<Image> color_view, depth_view, depth_image;
-        uint32_t _format;
-        std::pair<uint32_t, uint32_t> _size;
+        u32 _format;
+        Math::Vec2u _size;
     };
 }

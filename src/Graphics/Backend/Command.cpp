@@ -35,9 +35,9 @@ void CommandBuffer::begin(bool one_time) const
 {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = ( one_time ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT : (VkCommandBufferUsageFlags)0 ),
         .pNext = nullptr,
-        .pInheritanceInfo = nullptr
+        .flags = ( one_time ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT : (VkCommandBufferUsageFlags)0 ),
+        .pInheritanceInfo = nullptr,
     };
 
     const auto err = vkBeginCommandBuffer(handle.as<VkCommandBuffer>(), &begin_info);

@@ -10,7 +10,7 @@ namespace mn::Graphics
     {
         using gpu_addr = void*;
 
-        Buffer();
+        MN_SYMBOL Buffer();
         Buffer(Buffer&&) = default;
         Buffer(const Buffer&) = delete;
         virtual ~Buffer() { rawFree(); }
@@ -22,12 +22,12 @@ namespace mn::Graphics
         auto* rawData() const { return reinterpret_cast<std::byte*>(_data); }
         auto allocated() const { return _size; }
 
-        gpu_addr getAddress() const;
+        MN_SYMBOL gpu_addr getAddress() const;
 
     protected:
-        void  rawResize(std::size_t newsize);
-        void  rawFree();
-        auto  rawSize() const { return _size; }
+        MN_SYMBOL void rawResize(std::size_t newsize);
+        MN_SYMBOL void rawFree();
+        MN_SYMBOL auto rawSize() const { return _size; }
 
     private:
         Handle<Buffer> allocation;

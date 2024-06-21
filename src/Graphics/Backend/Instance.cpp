@@ -40,11 +40,11 @@ Instance::Instance() : handle(nullptr)
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = nullptr,
-        .apiVersion = VK_API_VERSION_1_0,
-        .engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0),
-        .pEngineName = "midnight",
+        .pApplicationName = "application",
         .applicationVersion = VK_MAKE_API_VERSION(0, 1, 0, 0),
-        .pApplicationName = "application"
+        .pEngineName = "midnight",
+        .engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0),
+        .apiVersion = VK_API_VERSION_1_0
     };
 
     VkInstanceCreateInfo create_info = {
@@ -59,7 +59,11 @@ Instance::Instance() : handle(nullptr)
     std::vector<const char*> enabled_extensions = { 
         VK_KHR_SURFACE_EXTENSION_NAME, 
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, 
+#ifdef __APPLE__
         "VK_EXT_metal_surface", 
+#elif defined(WIN32)
+        "VK_KHR_win32_surface",
+#endif
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME, 
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME
@@ -142,10 +146,10 @@ Instance::Instance() : handle(nullptr)
     device = std::make_unique<Device>(handle, physical_devices[0]);
 
     VmaAllocatorCreateInfo alloc_create_info = {
-        .instance = instance,
-        .device = device->getHandle().as<VkDevice>(),
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
         .physicalDevice = physical_devices[0],
-        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
+        .device = device->getHandle().as<VkDevice>(),
+        .instance = instance
     };
 
     const auto alloc = [&]()

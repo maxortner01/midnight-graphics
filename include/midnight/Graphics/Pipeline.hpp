@@ -32,17 +32,17 @@ namespace mn::Graphics
 
         struct Attribute
         {
-            uint32_t element_count, element_size, format;
-            uint8_t binding = 0;
+            u32 element_count, element_size, format;
+            u8 binding = 0;
         };
 
-        Shader();
-        Shader(std::filesystem::path path, ShaderType type);
-        ~Shader();
+        MN_SYMBOL Shader();
+        MN_SYMBOL Shader(std::filesystem::path path, ShaderType type);
+        MN_SYMBOL ~Shader();
 
-        void fromFile(std::filesystem::path path, ShaderType type);
-        void fromString(const std::string& contents, ShaderType type, const std::string& path = "");
-        void fromSpv(const std::vector<uint32_t>& contents, ShaderType type);
+        MN_SYMBOL void fromFile(std::filesystem::path path, ShaderType type);
+        MN_SYMBOL void fromString(const std::string& contents, ShaderType type, const std::string& path = "");
+        MN_SYMBOL void fromSpv(const std::vector<uint32_t>& contents, ShaderType type);
 
         auto getType() const { return type; }
         
@@ -62,11 +62,12 @@ namespace mn::Graphics
         Pipeline(const Pipeline&) = delete;
         Pipeline(Pipeline&&) = default;
 
-        ~Pipeline();
+        MN_SYMBOL ~Pipeline();
 
         auto getBindingStride() const { return binding_strides[0]; }
 
-        void setPushConstant(const std::unique_ptr<Backend::CommandBuffer>& cmd, const void* data) const;
+        MN_SYMBOL void setPushConstant(const std::unique_ptr<Backend::CommandBuffer>& cmd, const void* data) const;
+
         template<typename T>
         void setPushConstant(const std::unique_ptr<Backend::CommandBuffer>& cmd, const T& value) const
         {
@@ -75,7 +76,6 @@ namespace mn::Graphics
         }
 
     private:
-
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
 
         uint32_t push_constant_size;
@@ -86,19 +86,19 @@ namespace mn::Graphics
     struct PipelineBuilder
     {
 
-        static PipelineBuilder fromLua(const std::string& source_dir, const std::string& script);
+        MN_SYMBOL static PipelineBuilder fromLua(const std::string& source_dir, const std::string& script);
 
-        PipelineBuilder& addShader(std::filesystem::path path, ShaderType type);
-        PipelineBuilder& addShader(const std::shared_ptr<Shader>& shader);
-        PipelineBuilder& setPolyMode(Polygon p);
-        PipelineBuilder& setTopology(Topology t);
-        PipelineBuilder& setBackfaceCull(bool cull);
-        PipelineBuilder& setBlending(bool blend);
-        PipelineBuilder& setDepthTesting(bool d);
-        PipelineBuilder& setCullDirection(bool clockwise);
-        PipelineBuilder& setSize(uint32_t w, uint32_t h);
-        PipelineBuilder& setColorFormat(uint32_t c);
-        PipelineBuilder& setDepthFormat(uint32_t d);
+        MN_SYMBOL PipelineBuilder& addShader(std::filesystem::path path, ShaderType type);
+        MN_SYMBOL PipelineBuilder& addShader(const std::shared_ptr<Shader>& shader);
+        MN_SYMBOL PipelineBuilder& setPolyMode(Polygon p);
+        MN_SYMBOL PipelineBuilder& setTopology(Topology t);
+        MN_SYMBOL PipelineBuilder& setBackfaceCull(bool cull);
+        MN_SYMBOL PipelineBuilder& setBlending(bool blend);
+        MN_SYMBOL PipelineBuilder& setDepthTesting(bool d);
+        MN_SYMBOL PipelineBuilder& setCullDirection(bool clockwise);
+        MN_SYMBOL PipelineBuilder& setSize(uint32_t w, uint32_t h);
+        MN_SYMBOL PipelineBuilder& setColorFormat(uint32_t c);
+        MN_SYMBOL PipelineBuilder& setDepthFormat(uint32_t d);
         
         template<typename T>
         PipelineBuilder& setPushConstantObject()
@@ -107,7 +107,7 @@ namespace mn::Graphics
             return *this;
         }
 
-        Pipeline build() const;
+        MN_SYMBOL Pipeline build() const;
 
     private:
         std::pair<uint32_t, uint32_t> size;

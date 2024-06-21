@@ -6,10 +6,9 @@ Polygon = {
     Wireframe = 1
 }
 
-
 Pipeline = {
     shaders = {
-        vertex   = "/shaders/collision.vertex.glsl",
+        vertex   = "/shaders/vertex.glsl",
         fragment = "/shaders/fragment.glsl"
     },
     colorFormat = VK_FORMAT_B8G8R8A8_UNORM,

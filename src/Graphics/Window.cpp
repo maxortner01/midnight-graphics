@@ -35,6 +35,11 @@ void FrameData::destroy()
     command_pool.reset();
 }
 
+Window::Window(const Math::Vec2u& size, const std::string& name)
+{
+    _open(size, name);
+}
+
 Window::Window(const std::string& config_file)
 {
     MIDNIGHT_ASSERT(!SDL_WasInit(SDL_INIT_VIDEO), "SDL has already been initialized!");
@@ -53,11 +58,16 @@ Window::Window(const std::string& config_file)
         return std::tuple(string, w, h);
     }(config_file) : std::tuple("window", 1280, 720) );
 
-    // Create the window
-    handle = static_cast<handle_t>(SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN));
-    MIDNIGHT_ASSERT(handle, "Error initializing window");
+    _open({ width, height }, title);   
+}
 
-    std::tie(Math::x(_size), Math::y(_size)) = std::pair(width, height);
+void Window::_open(const Math::Vec2u& req_size, const std::string& name)
+{
+    // Create the window
+    handle = static_cast<handle_t>(SDL_CreateWindow(name.c_str(), Math::x(req_size), Math::y(req_size), SDL_WINDOW_VULKAN));
+    MIDNIGHT_ASSERT(handle, "Error initializing window");
+    
+    _size = req_size;
 
     auto instance = mn::Graphics::Backend::Instance::get();
     const auto& device = instance->getDevice();
@@ -93,6 +103,24 @@ Window Window::fromLuaScript(const std::string& config_file)
 void Window::close()
 {
     _close = true;
+}
+
+bool Window::pollEvent(Event& event) const
+{
+    SDL_Event e;
+    const auto res = SDL_PollEvent(&e);
+
+    switch (e.type)
+    {
+    case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+        event.event = Event::Quit{};
+        break;
+    default: 
+        event.event = Event::None{};
+        break;
+    }
+
+    return res;
 }
 
 void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
@@ -259,6 +287,7 @@ Window::~Window()
 {
     if (handle)
     {
+	    finishWork();
         {
             auto instance = mn::Graphics::Backend::Instance::get();
             const auto& device = instance->getDevice();
