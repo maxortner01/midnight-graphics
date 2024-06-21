@@ -22,7 +22,7 @@ namespace mn::Graphics
         void destroy();
     };
 
-    struct Window
+    struct MN_SYMBOL Window
     {
         Window(const Math::Vec2u& size, const std::string& name);
         Window(const std::string& config_file = "");

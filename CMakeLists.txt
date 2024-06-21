@@ -53,6 +53,7 @@ target_include_directories(midnight-graphics PRIVATE
     ${CMAKE_SOURCE_DIR}/include 
     ${CMAKE_SOURCE_DIR}/include/midnight 
     ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
+    target_compile_definitions(midnight-graphics PRIVATE -DMN_BUILD)
 
 add_executable(main main.cpp)
 target_link_libraries(main PRIVATE midnight-graphics)

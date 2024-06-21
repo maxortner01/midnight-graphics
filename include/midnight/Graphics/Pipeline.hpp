@@ -26,7 +26,7 @@ namespace mn::Graphics
         Fill, Wireframe
     };
 
-    struct Shader : ObjectHandle<Shader>
+    struct MN_SYMBOL Shader : ObjectHandle<Shader>
     {
         friend struct Pipeline;
 
@@ -55,7 +55,7 @@ namespace mn::Graphics
 
     struct PipelineBuilder;
 
-    struct Pipeline : ObjectHandle<Pipeline>
+    struct MN_SYMBOL Pipeline : ObjectHandle<Pipeline>
     {
         friend struct PipelineBuilder;
         
@@ -83,7 +83,7 @@ namespace mn::Graphics
         mn::handle_t layout;
     };
 
-    struct PipelineBuilder
+    struct MN_SYMBOL PipelineBuilder
     {
 
         static PipelineBuilder fromLua(const std::string& source_dir, const std::string& script);

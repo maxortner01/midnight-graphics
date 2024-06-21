@@ -12,7 +12,7 @@ namespace mn::Graphics
     struct FrameData;
     struct Pipeline;
 
-    struct RenderFrame
+    struct MN_SYMBOL RenderFrame
     {
         friend struct Window;
 

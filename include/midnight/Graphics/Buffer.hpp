@@ -6,7 +6,7 @@
 
 namespace mn::Graphics
 {
-    struct Buffer : ObjectHandle<Buffer>
+    struct MN_SYMBOL Buffer : ObjectHandle<Buffer>
     {
         using gpu_addr = void*;
 

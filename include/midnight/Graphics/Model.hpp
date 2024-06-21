@@ -8,7 +8,7 @@ namespace mn::Graphics
     struct Buffer;
     struct RenderFrame;
 
-    struct Model
+    struct MN_SYMBOL Model
     {
         friend struct RenderFrame;
 

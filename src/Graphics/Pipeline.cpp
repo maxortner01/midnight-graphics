@@ -104,28 +104,25 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
         // this is a crappy way of doing this
         std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_VertexIndex") != std::string::npos); });
 
-        if (vars.size())
+        attributes.emplace(std::vector<Attribute>()); 
+        for (const auto* var : vars)
         {
-            attributes.emplace(std::vector<Attribute>()); 
-            for (const auto* var : vars)
-            {
-                uint32_t member_count = 0;
-                if (var->format >= 98 && var->format <= 100)
-                    member_count = 1;
-                if (var->format >= 101 && var->format <= 103)
-                    member_count = 2;
-                if (var->format >= 104 && var->format <= 106)
-                    member_count = 3;
-                if (var->format >= 107 && var->format <= 109)
-                    member_count = 4;
+            uint32_t member_count = 0;
+            if (var->format >= 98 && var->format <= 100)
+                member_count = 1;
+            if (var->format >= 101 && var->format <= 103)
+                member_count = 2;
+            if (var->format >= 104 && var->format <= 106)
+                member_count = 3;
+            if (var->format >= 107 && var->format <= 109)
+                member_count = 4;
 
-                attributes->push_back(Attribute {
-                    .element_count = member_count,
-                    .element_size = sizeof(float),
-                    .format = static_cast<uint32_t>(var->format),
-                    .binding = 0
-                });
-            }
+            attributes->push_back(Attribute {
+                .element_count = member_count,
+                .element_size = sizeof(float),
+                .format = static_cast<uint32_t>(var->format),
+                .binding = 0
+            });
         }
 
         spvReflectDestroyShaderModule(&shader_mod);

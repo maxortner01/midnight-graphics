@@ -14,6 +14,16 @@
 
 #define MIDNIGHT_ASSERT(expr, msg) if (!(expr)) { std::cout << "\nCritical error!\n - " << std::filesystem::path(__FILE__).filename().string() << ":" << __LINE__ << "\n - Assertion failed (" << #expr << ")\n\n" << msg << std::endl; std::terminate(); }
 
+#ifdef _MSC_VER
+#   ifdef MN_BUILD
+#       define MN_SYMBOL __declspec(dllexport)
+#   else
+#       define MN_SYMBOL __declspec(dllimport)
+#   endif
+#else
+    #define MN_SYMBOL
+#endif
+
 namespace mn
 {
     using handle_t = void*;
