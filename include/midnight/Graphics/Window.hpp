@@ -51,13 +51,14 @@ namespace mn::Graphics
     private:
         void _open(const Math::Vec2u& size, const std::string& name);
 
-        uint32_t next_image_index() const;
+        uint32_t next_image_index(std::shared_ptr<FrameData> fd) const;
+        std::shared_ptr<FrameData> get_next_frame() const;
 
         bool _close;
         Handle<Window> handle;
         mn::handle_t surface, swapchain;
         std::vector<std::shared_ptr<Image>> images;
-        std::shared_ptr<FrameData> frame_data;
+        std::vector<std::shared_ptr<FrameData>> frame_data;
         Math::Vec2u _size;
     };
 }
