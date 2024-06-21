@@ -4,60 +4,55 @@ project(main C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory(extern/VMA)
-
-find_package(Vulkan REQUIRED)
-get_filename_component(VULKAN_PATH ${Vulkan_LIBRARIES} DIRECTORY)
-
-find_library(SHADERC shaderc_combinedd HINTS ${VULKAN_PATH})
-if (NOT SHADERC)
-    find_library(SHADERC shaderc_combined HINTS ${VULKAN_PATH})
-
-    if (NOT SHADERC)
-        message(FATAL_ERROR "No version of shaderc found")
-    endif()
-
-else()
-    message("Using shaderc_combinedd")
+option(MN_BUILD_LIB "Build the midnight-graphics library" ON)
+if (MN_BUILD_LIB)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
+    add_subdirectory(extern/VMA)
+    add_subdirectory(extern/SDL)
+    add_subdirectory(extern/simple-lua)
 endif()
 
-message("Using Vulkan version ${Vulkan_VERSION}")
+option(MN_BUILD_EXEC "Build the test executable" ON)
+if (MN_BUILD_EXEC)
+    add_executable(main main.cpp)
+    target_link_libraries(main PRIVATE midnight-graphics)
+    target_include_directories(main PRIVATE 
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/midnight)
+    target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/tests")
+endif()
 
-set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
-add_subdirectory(extern/SDL)
-add_subdirectory(extern/simple-lua)
+option(MN_BUILD_DOCS "Build the documentation" OFF)
+if (MN_BUILD_DOCS)
+    find_package(Doxygen)
+    if (DOXYGEN_FOUND)
+        include(ExternalProject)
+        ExternalProject_Add(doxygenawesome
+            GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
+            DOWNLOAD_EXTRACT_TIMESTAMP ON
+            SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen-awesome"
+            DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen-awesome"
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+            CONFIGURE_COMMAND ""
+            GIT_TAG origin/main
+        )
 
-set(SPIRV_REFLECT
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
+        # set input and output files
+        set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in)
+        set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 
-add_library(midnight-graphics SHARED
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Device.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Command.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Sync.cpp
+        # request to configure the file
+        configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+        message("Doxygen build started")
 
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/RenderFrame.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Image.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Model.cpp
-
-    ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
-
-    ${SPIRV_REFLECT})
-
-target_link_libraries(midnight-graphics PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
-target_include_directories(midnight-graphics PRIVATE 
-    ${CMAKE_SOURCE_DIR}/include 
-    ${CMAKE_SOURCE_DIR}/include/midnight 
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
-    target_compile_definitions(midnight-graphics PRIVATE -DMN_BUILD)
-
-add_executable(main main.cpp)
-target_link_libraries(main PRIVATE midnight-graphics)
-target_include_directories(main PRIVATE 
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/midnight)
-target_compile_definitions(main PRIVATE -DSOURCE_DIR="${CMAKE_SOURCE_DIR}/tests")
+        # note the option ALL which allows to build the docs together with the application
+        add_custom_target( doc_doxygen ALL
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM )
+    else (DOXYGEN_FOUND)
+        message(FATAL_ERROR "Doxygen need to be installed to generate the doxygen documentation")
+    endif (DOXYGEN_FOUND)
+endif()
