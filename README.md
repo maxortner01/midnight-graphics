@@ -28,3 +28,34 @@ struct EventHandler
 which can be used with `std::visit(e_handler, event.event)` inside the poll event loop.
 
 ### Shader and Data
+In order to actually draw things you first need the data you want to render and then the specification for *how* to draw that data. The former is a `Graphics::Buffer` and the latter your `Graphics::Pipeline`.
+
+To create a buffer, the best way is to utilize the `Graphics::TypeBuffer`:
+```C++
+struct Vertex
+{
+	Math::Vec2f position;
+	float rotation;
+};
+
+Graphics::TypeBuffer<Vertex> vertices;
+vertices.resize(3);
+vertices[0] = ...
+...
+```
+To create a pipeline, we use a `Graphics::PipelineBuilder`. Check out the documentation for more info on that, but I always have preferred to use Lua scripts to create the pipeline. So it's as simple as 
+```C++
+auto pipeline = Graphics::PipelineBuilder(SOURCE_DIR, "/main.lua")
+					.build()
+```
+Then, to draw we simply
+```C++
+auto rf = window.startFrame();
+
+rf.clear({ 0.f, 0.f, 0.f });
+rf.startRender();
+rf.draw(pipeline, vertices);
+rf.endRender();
+
+window.endFrame(rf);
+```
