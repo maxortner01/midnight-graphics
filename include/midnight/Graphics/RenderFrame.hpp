@@ -12,31 +12,31 @@ namespace mn::Graphics
     struct FrameData;
     struct Pipeline;
 
-    struct MN_SYMBOL RenderFrame
+    struct RenderFrame
     {
         friend struct Window;
 
         const uint32_t image_index;
         std::shared_ptr<const Image> image;
 
-        void startRender();
-        void endRender();
+        MN_SYMBOL void startRender();
+        MN_SYMBOL void endRender();
 
-        void clear(std::tuple<float, float, float> color) const;
+        MN_SYMBOL void clear(std::tuple<float, float, float> color) const;
         
-        void setPushConstant(const Pipeline& pipeline, const void* data) const;
+        MN_SYMBOL void setPushConstant(const Pipeline& pipeline, const void* data) const;
         template<typename T>
         void setPushConstant(const Pipeline& pipeline, const T& value) const
         {
             setPushConstant(pipeline, reinterpret_cast<const void*>(&value));
         }
 
-        void draw(const Pipeline& pipeline, uint32_t vertices) const;
-        void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
-        void draw(const Pipeline& pipeline, const Model& model) const;
-        void draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, uint32_t vertices) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, const Model& model) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const;
 
-        void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const;
+        MN_SYMBOL void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const;
 
     private:
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }

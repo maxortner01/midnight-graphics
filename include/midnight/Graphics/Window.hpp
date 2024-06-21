@@ -22,31 +22,31 @@ namespace mn::Graphics
         void destroy();
     };
 
-    struct MN_SYMBOL Window
+    struct Window
     {
-        Window(const Math::Vec2u& size, const std::string& name);
-        Window(const std::string& config_file = "");
+        MN_SYMBOL Window(const Math::Vec2u& size, const std::string& name);
+        MN_SYMBOL Window(const std::string& config_file = "");
 
-        static Window fromLuaScript(const std::string& config_file);
+        MN_SYMBOL static Window fromLuaScript(const std::string& config_file);
 
         Window(const Window&) = delete;
         Window(Window&&);
 
-        ~Window();
+        MN_SYMBOL ~Window();
 
-        void close();
+        MN_SYMBOL void close();
 
-        bool pollEvent(Event& event) const;
+        MN_SYMBOL bool pollEvent(Event& event) const;
 
         auto size() const { return _size; }
         
-        RenderFrame startFrame() const;
-        void endFrame(RenderFrame& rf) const;
-        void runFrame(const std::function<void(RenderFrame& rf)>& func) const;
+        MN_SYMBOL RenderFrame startFrame() const;
+        MN_SYMBOL void endFrame(RenderFrame& rf) const;
+        MN_SYMBOL void runFrame(const std::function<void(RenderFrame& rf)>& func) const;
 
-        void setTitle(const std::string& title) const;
+        MN_SYMBOL void setTitle(const std::string& title) const;
         bool shouldClose() const { return _close; }
-        void finishWork() const;
+        MN_SYMBOL void finishWork() const;
 
     private:
         void _open(const Math::Vec2u& size, const std::string& name);

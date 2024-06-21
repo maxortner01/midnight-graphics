@@ -8,7 +8,7 @@ namespace mn::Graphics
     struct Buffer;
     struct RenderFrame;
 
-    struct MN_SYMBOL Model
+    struct Model
     {
         friend struct RenderFrame;
 
@@ -24,20 +24,20 @@ namespace mn::Graphics
             std::vector<uint32_t> indices;
         };
 
-        static Model fromFrame(const Frame& frame);
-        static Model fromLua(const std::string& lua_file);
+        MN_SYMBOL static Model fromFrame(const Frame& frame);
+        MN_SYMBOL static Model fromLua(const std::string& lua_file);
 
-        std::size_t vertexCount() const;
-        std::size_t indexCount() const;
+        MN_SYMBOL std::size_t vertexCount() const;
+        MN_SYMBOL std::size_t indexCount() const;
 
-        void setVertexCount(uint32_t count);
-        void setIndexCount(uint32_t count);
+        MN_SYMBOL void setVertexCount(uint32_t count);
+        MN_SYMBOL void setIndexCount(uint32_t count);
 
-        std::span<Vertex> vertices();
-        std::span<const Vertex> vertices() const;
+        MN_SYMBOL std::span<Vertex> vertices();
+        MN_SYMBOL std::span<const Vertex> vertices() const;
 
-        std::span<uint32_t> indices();
-        std::span<const uint32_t> indices() const;
+        MN_SYMBOL std::span<uint32_t> indices();
+        MN_SYMBOL std::span<const uint32_t> indices() const;
 
     private:
         std::shared_ptr<Buffer> vertex, index;

@@ -6,11 +6,11 @@
 
 namespace mn::Graphics
 {
-    struct MN_SYMBOL Image : ObjectHandle<Image>
+    struct Image : ObjectHandle<Image>
     {
-        Image(u32 format, const Math::Vec2u& size, bool depth = true);
-        Image(Handle<Image> h, u32 f, const Math::Vec2u& s, bool depth = true);
-        ~Image();
+        MN_SYMBOL Image(u32 format, const Math::Vec2u& size, bool depth = true);
+        MN_SYMBOL Image(Handle<Image> h, u32 f, const Math::Vec2u& s, bool depth = true);
+        MN_SYMBOL ~Image();
 
         auto size()   const { return _size;   }
         auto format() const { return _format; }
