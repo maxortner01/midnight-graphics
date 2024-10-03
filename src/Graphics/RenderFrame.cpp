@@ -15,18 +15,18 @@ void RenderFrame::startRender()
     VkRenderingAttachmentInfo color_attach = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
-        .imageView = image->getColorImageView().as<VkImageView>(),
+        .imageView = static_cast<VkImageView>(image->getAttachment<Image::Color>().view),
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
 
     std::optional<VkRenderingAttachmentInfo> depth_attach;
 
-    if (image->getDepthImageView())
+    if (image->hasAttachment<Image::DepthStencil>())
     {
         auto attachment_info = VkRenderingAttachmentInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
-            .imageView = image->getDepthImageView().as<VkImageView>(),
+            .imageView = static_cast<VkImageView>( image->getAttachment<Image::DepthStencil>().view ),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -36,11 +36,12 @@ void RenderFrame::startRender()
         depth_attach.emplace(attachment_info);
     }
 
+    const auto& image_size = image->getAttachment<Image::Color>().size;
     VkRenderingInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .renderArea = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) },
+        .renderArea = { 0, 0, Math::x( image_size ), Math::y( image_size ) },
         .layerCount = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_attach,
@@ -49,10 +50,10 @@ void RenderFrame::startRender()
 
     const auto command_buffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-    VkRect2D sc = { 0, 0, Math::x( image->size() ), Math::y( image->size() ) };
+    VkRect2D sc = { 0, 0, Math::x( image_size ), Math::y( image_size ) };
     vkCmdSetScissor(command_buffer, 0, 1, &sc);
 
-    VkViewport extent = { .x = 0, .y = 0, .width = static_cast<float>(Math::x(image->size())), .height = static_cast<float>(Math::y(image->size())), .minDepth = 0, .maxDepth = 1.f };
+    VkViewport extent = { .x = 0, .y = 0, .width = static_cast<float>(Math::x(image_size)), .height = static_cast<float>(Math::y(image_size)), .minDepth = 0, .maxDepth = 1.f };
     vkCmdSetViewport(command_buffer, 0, 1, &extent);
 
     auto& device = Backend::Instance::get()->getDevice();
@@ -95,7 +96,7 @@ void RenderFrame::clear(std::tuple<float, float, float> color) const
 	//clear image
 	vkCmdClearColorImage(
         frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        image->getHandle().as<VkImage>(), 
+        static_cast<VkImage>(image->getAttachment<Image::Color>().handle), 
         VK_IMAGE_LAYOUT_GENERAL, 
         &clearValue, 
         1, 

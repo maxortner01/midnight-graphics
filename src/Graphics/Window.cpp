@@ -75,7 +75,14 @@ void Window::_open(const Math::Vec2u& req_size, const std::string& name)
 
     const auto [ s, _images, format, size ] = device->createSwapchain(handle, surface);
     for (const auto& image : _images)
-        images.emplace_back(std::make_shared<Image>(image, format, size, true));
+    {
+        images.emplace_back(std::make_shared<Image>(
+            ImageFactory()
+                .addImage<Image::Color>(image, format, size)
+                .addAttachment<Image::DepthStencil>(Image::DF32_SU8, size)
+                .build()
+        ));
+    }
 
     swapchain = s;
 
@@ -178,10 +185,11 @@ RenderFrame Window::startFrame() const
     next_frame->command_buffer->reset();
     next_frame->command_buffer->begin();
 
-    auto _image = images[n_image]->getHandle().as<VkImage>();
+    auto _image = static_cast<VkImage>(images[n_image]->getAttachment<Image::Color>().handle);
+    auto _depth_image = static_cast<VkImage>(images[n_image]->getAttachment<Image::DepthStencil>().handle);
     auto _cmd   = next_frame->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-    transition_image(_cmd, images[n_image]->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    transition_image(_cmd, _depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     RenderFrame frame(n_image, images[n_image]);
     frame.frame_data = next_frame;
@@ -193,7 +201,7 @@ void Window::endFrame(RenderFrame& rf) const
 {
     // All this code essentially copied...
     
-    auto _image = images[rf.image_index]->getHandle().as<VkImage>();
+    auto _image = static_cast<VkImage>(images[rf.image_index]->getAttachment<Image::Color>().handle);
     auto _cmd   = rf.frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     rf.frame_data->command_buffer->end();

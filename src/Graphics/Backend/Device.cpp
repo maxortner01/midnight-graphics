@@ -253,7 +253,7 @@ std::pair<Handle<Image>, mn::handle_t> Device::createImage(const Math::Vec2u& si
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
+        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
     };
 
     VmaAllocationCreateInfo alloc_create_info = {

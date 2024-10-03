@@ -6,23 +6,72 @@
 
 namespace mn::Graphics
 {
-    struct Image : ObjectHandle<Image>
+    // Reformat this as image w/ attachments
+    // Then we can add has_attachment<>() function to determine if there's depth/stencil
+    struct ImageFactory;
+
+    struct Image
     {
-        MN_SYMBOL Image(u32 format, const Math::Vec2u& size, bool depth = true);
-        MN_SYMBOL Image(Handle<Image> h, u32 f, const Math::Vec2u& s, bool depth = true);
-        MN_SYMBOL ~Image();
+        enum Type
+        {
+            Color, DepthStencil
+        };
 
-        auto size()   const { return _size;   }
-        auto format() const { return _format; }
+        struct Attachment
+        {
+            mn::handle_t handle, allocation, view;
+            u32 format;
+            Math::Vec2u size;
+        };
 
-        auto getColorImageView() const { return color_view; }
-        auto getDepthImageView() const { return depth_view; }
-        auto getDepthImage() const { return depth_image; }
+        enum Format : u32
+        {
+            DF32_SU8 = 130
+        };
+
+        Image(const Image&) = delete;
+        Image(Image&&) = default;
+
+        ~Image();
+
+        template<Type T>
+        bool
+        hasAttachment() const
+        {
+            return attachments.count(T);
+        }
+
+        template<Type T>
+        const Attachment& 
+        getAttachment() const
+        {
+            return attachments.at(T);
+        }
 
     private:
-        mn::handle_t image_allocation, depth_allocation;
-        Handle<Image> color_view, depth_view, depth_image;
-        u32 _format;
-        Math::Vec2u _size;
+        friend struct ImageFactory;
+
+        Image() = default;
+
+        std::unordered_map<Type, Attachment> attachments;
+    };
+
+    struct ImageFactory
+    {
+        ImageFactory();
+
+        template<Image::Type T>
+        ImageFactory&
+        addAttachment(u32 format, const Math::Vec2u& size);
+
+        template<Image::Type T>
+        ImageFactory&
+        addImage(handle_t handle, u32 format, const Math::Vec2u& size);
+
+        [[nodiscard]] Image&& 
+        build();
+    
+    private:
+        std::unique_ptr<Image> image;
     };
 }

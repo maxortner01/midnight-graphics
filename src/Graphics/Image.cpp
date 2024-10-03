@@ -5,65 +5,65 @@
 
 namespace mn::Graphics
 {
-    Image::Image(u32 format, const Math::Vec2u& size, bool depth) :
-        _format(format),
-        _size(size),
-        depth_allocation{0},
-        image_allocation{0}
-    {
-        auto& device = Backend::Instance::get()->getDevice();
-        std::tie(handle, image_allocation) = device->createImage(size, format);
-        color_view = device->createImageView(handle, format);
-
-        if (depth)
-        {
-            std::tie(depth_image, depth_allocation) = device->createImage(size, 130, true);
-            depth_view = device->createImageView(depth_image, 130, true);
-        }
-    }
-
-    Image::Image(Handle<Image> h, u32 f, const Math::Vec2u& s, bool depth) :
-        ObjectHandle(h),
-        _format(f),
-        _size(s),
-        depth_allocation{0},
-        image_allocation{0}
-    {   
-        auto& device = Backend::Instance::get()->getDevice();
-        color_view = device->createImageView(h, f);
-
-        if (depth)
-        {
-            std::tie(depth_image, depth_allocation) = device->createImage(s, 130, true);
-            depth_view = device->createImageView(depth_image, 130, true);
-        }
-    }
-
     Image::~Image()
     {
         auto& device = Backend::Instance::get()->getDevice();
-        if (color_view)
+        for (auto& [ type, a ] : attachments)
         {
-            device->destroyImageView(color_view);
-            color_view = nullptr;
-        }
+            device->destroyImageView(a.view);
 
-        if (depth_view)
-        {
-            device->destroyImageView(depth_view);
-            depth_view = nullptr;
+            if (a.allocation)
+                device->destroyImage(a.handle, a.allocation);
         }
+    }
 
-        if (depth_image)
-        {
-            device->destroyImage(depth_image, depth_allocation);
-            depth_image = nullptr;
-        }
+    ImageFactory::ImageFactory() :
+        image(std::unique_ptr<Image>(new Image()))
+    {   }
 
-        if (image_allocation)
-        {
-            device->destroyImage(handle, image_allocation);
-            handle = nullptr;
-        }
+    template<Image::Type T>
+    ImageFactory& 
+    ImageFactory::addAttachment(u32 format, const Math::Vec2u& size)
+    {
+        constexpr bool depth = (T == Image::DepthStencil);
+        auto& device = Backend::Instance::get()->getDevice();
+        Image::Attachment a;
+        std::tie(a.handle, a.allocation) = 
+            device->createImage(size, format, depth);
+        a.view = device->createImageView(a.handle, format, depth);
+        a.format = format;
+        a.size = size;
+
+        image->attachments[T] = std::move(a);
+
+        return *this;
+    }
+    template ImageFactory& ImageFactory::addAttachment<Image::Color>(u32, const Math::Vec2u&);
+    template ImageFactory& ImageFactory::addAttachment<Image::DepthStencil>(u32, const Math::Vec2u&);
+
+    template<Image::Type T>
+    ImageFactory&
+    ImageFactory::addImage(handle_t handle, u32 format, const Math::Vec2u& size)
+    {
+        constexpr bool depth = (T == Image::DepthStencil);
+        auto& device = Backend::Instance::get()->getDevice();
+        Image::Attachment a;
+        a.handle = handle;
+        a.allocation = nullptr;
+        a.view = device->createImageView(a.handle, format, depth);
+        a.format = format;
+        a.size = size;
+
+        image->attachments[T] = std::move(a);
+
+        return *this;
+    }
+    template ImageFactory& ImageFactory::addImage<Image::Color>(handle_t, u32, const Math::Vec2u&);
+    template ImageFactory& ImageFactory::addImage<Image::DepthStencil>(handle_t, u32, const Math::Vec2u&);
+    
+    Image&& 
+    ImageFactory::build()
+    {
+        return std::move(*image.release());
     }
 }
