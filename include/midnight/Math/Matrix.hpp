@@ -182,6 +182,9 @@ namespace mn::Math
     }
 
     template<typename T>
+    using Mat2 = Mat<2, 2, T>;
+
+    template<typename T>
     using Mat3 = Mat<3, 3, T>;
 
     template<typename T>

@@ -48,6 +48,8 @@ namespace mn::Graphics
         bool shouldClose() const { return _close; }
         MN_SYMBOL void finishWork() const;
 
+        float aspectRatio() const { return (float)Math::x(_size) / (float)Math::y(_size); }
+
     private:
         void _open(const Math::Vec2u& size, const std::string& name);
 

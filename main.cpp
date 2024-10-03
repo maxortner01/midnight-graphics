@@ -25,7 +25,7 @@ struct EventVisitor
 
 struct Constants
 {
-	mn::Graphics::Buffer::gpu_addr vertices;
+	mn::Graphics::Buffer::gpu_addr models;
 };
 
 int main()
@@ -39,12 +39,25 @@ int main()
 		.setPushConstantObject<Constants>()
         .build();
 
-	Graphics::TypeBuffer<Math::Vec2f> data;
-	data.resize(3);
-	data[0] = {  0.f,  1.f };
-	data[1] = { -1.f, -1.f };
-	data[2] = {  1.f, -1.f };
+	auto model = Graphics::Model::fromFrame([]()
+	{
+		Graphics::Model::Frame frame;
+		frame.vertices = {
+			{ { -1.f,  1.f, -5.5f } },
+			{ { -1.f, -1.f, -5.5f } },
+			{ {  1.f, -1.f, -5.5f } },
+			{ {  1.f,  1.f, -5.5f } }
+		};
 
+		frame.indices = { 0, 1, 2, 2, 3, 0 };
+
+		return frame;
+	}());
+
+	Graphics::TypeBuffer<Math::Mat4<float>> model_mats;
+	model_mats.resize(2);
+
+	uint32_t i = 0;
 	while (!window.shouldClose())
 	{
 		Graphics::Event event;
@@ -55,12 +68,22 @@ int main()
 
 		rf.clear({ 0.25f, 0.f, 0.f });
 
+		Constants c;
+		c.models = model_mats.getAddress();
+		model_mats[0] = Math::perspective<float>(window.aspectRatio(), Math::Angle::degrees(50), { 0.1f, 100.f });
+		model_mats[1] = Math::rotation<float>(Math::Vec3<Math::Angle>( {
+			Math::Angle::radians(0), 
+			Math::Angle::radians(0), 
+			Math::Angle::radians(i / 100.f)
+		} ));
+
 		rf.startRender();
-		rf.setPushConstant(pipeline, Constants{ data.getAddress() });
-		rf.draw(pipeline, data.vertices());
+		rf.setPushConstant(pipeline, c);
+		rf.draw(pipeline, model);
 		rf.endRender();
 
 		window.endFrame(rf);
+		i++;
 	}
 
 	window.finishWork();

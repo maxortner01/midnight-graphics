@@ -10,6 +10,7 @@ if (MN_BUILD_LIB)
     add_subdirectory(extern/VMA)
     add_subdirectory(extern/SDL)
     add_subdirectory(extern/simple-lua)
+    add_subdirectory(src)
 endif()
 
 option(MN_BUILD_EXEC "Build the test executable" ON)
