@@ -4,6 +4,8 @@ project(main C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
+set(MIDNIGHT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 option(MN_BUILD_LIB "Build the midnight-graphics library" ON)
 if (MN_BUILD_LIB)
     set(SDL_TEST_LIBRARY OFF CACHE BOOL "")

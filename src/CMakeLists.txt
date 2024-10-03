@@ -21,29 +21,31 @@ endif()
 message("Using Vulkan version ${Vulkan_VERSION}")
 
 set(SPIRV_REFLECT
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.c
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect/spirv_reflect.h)
+    ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect/spirv_reflect.c
+    ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect/spirv_reflect.h)
 
 add_library(midnight-graphics SHARED
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Instance.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Device.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Command.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Backend/Sync.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Instance.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Device.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Command.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Sync.cpp
 
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Window.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Pipeline.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/RenderFrame.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Buffer.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Image.cpp
-    ${CMAKE_SOURCE_DIR}/src/Graphics/Model.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Window.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Pipeline.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/RenderFrame.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Buffer.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Image.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Model.cpp
 
-    ${CMAKE_SOURCE_DIR}/src/Math/Angle.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Math/Angle.cpp
 
     ${SPIRV_REFLECT})
 
 target_link_libraries(midnight-graphics PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
-target_include_directories(midnight-graphics PRIVATE 
-    ${CMAKE_SOURCE_DIR}/include 
-    ${CMAKE_SOURCE_DIR}/include/midnight 
-    ${CMAKE_SOURCE_DIR}/extern/spirv-reflect)
+target_include_directories(midnight-graphics 
+    PUBLIC
+        ${MIDNIGHT_BASE_DIR}/include 
+        ${MIDNIGHT_BASE_DIR}/include/midnight 
+    PRIVATE 
+        ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect)
     target_compile_definitions(midnight-graphics PRIVATE -DMN_BUILD)
