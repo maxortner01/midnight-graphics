@@ -31,12 +31,13 @@ namespace mn::Graphics
             setPushConstant(pipeline, reinterpret_cast<const void*>(&value));
         }
 
-        MN_SYMBOL void draw(const Pipeline& pipeline, uint32_t vertices) const;
-        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const;
-        MN_SYMBOL void draw(const Pipeline& pipeline, const Model& model) const;
-        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, uint32_t vertices, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, const Buffer& buffer, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, const Model& model, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t instances = 1) const;
 
-        MN_SYMBOL void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const;
+        MN_SYMBOL void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances = 1) const;
 
     private:
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }

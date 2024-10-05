@@ -103,6 +103,7 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
 
         // this is a crappy way of doing this
         std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_VertexIndex") != std::string::npos); });
+        std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_InstanceIndex") != std::string::npos); });
 
         attributes.emplace(std::vector<Attribute>()); 
         for (const auto* var : vars)
@@ -519,12 +520,12 @@ Pipeline PipelineBuilder::build() const
     const auto err = vkCreateGraphicsPipelines(device->getHandle().as<VkDevice>(), VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating graphics pipeline: " << string_VkResult(err));
 
-    Pipeline p(pipeline);
-    p.binding_strides.push_back(binding.stride);
-    p.layout = layout;
-    p.push_constant_size = push_constant_size;
+    auto p = std::unique_ptr<Pipeline>(new Pipeline(pipeline));
+    p->binding_strides.push_back(binding.stride);
+    p->layout = layout;
+    p->push_constant_size = push_constant_size;
 
-    return p;
+    return std::move(*p.release());
 }
 
 }

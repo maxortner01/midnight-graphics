@@ -117,7 +117,7 @@ void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) co
     pipeline.setPushConstant(frame_data->command_buffer, data);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices) const
+void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices, uint32_t instances) const
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
@@ -129,18 +129,18 @@ void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices) const
     vkCmdDraw(
         cmdBuffer,
         vertices,
-        1, 
+        instances,
         0,
         0);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer) const
+void RenderFrame::draw(const Pipeline& pipeline, const Buffer& buffer, uint32_t instances) const
 {
-    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
+    MIDNIGHT_ASSERT(!(buffer.allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
 
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-    const auto buff = buffer->getHandle().as<VkBuffer>();
+    const auto buff = buffer.getHandle().as<VkBuffer>();
     VkDeviceSize off = 0;
     vkCmdBindVertexBuffers(
         cmdBuffer,
@@ -149,25 +149,30 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer)
         &buff,
         &off);
 
-    draw(pipeline, buffer->vertices());
+    draw(pipeline, buffer.vertices(), instances);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, const Model& model) const
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t instances) const
+{
+    draw(pipeline, *buffer, instances);
+}
+
+void RenderFrame::draw(const Pipeline& pipeline, const Model& model, uint32_t instances) const
 {
     if (!model.vertexCount()) return;
 
     if (model.indexCount())
-        drawIndexed(pipeline, model.vertex, model.index);
+        drawIndexed(pipeline, model.vertex, model.index, instances);
     else
-        draw(pipeline, model.vertex);
+        draw(pipeline, model.vertex, instances);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model) const
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t instances) const
 {
-    draw(pipeline, *model);
+    draw(pipeline, *model, instances);
 }
 
-void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices) const
+void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances) const
 {
     MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
 
@@ -196,7 +201,7 @@ void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> 
     vkCmdDrawIndexed(
         cmdBuffer,
         indices->allocated() / sizeof(uint32_t),
-        1,
+        instances,
         0, 
         0, 
         0);

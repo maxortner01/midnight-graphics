@@ -107,7 +107,7 @@ namespace mn::Graphics
             return *this;
         }
 
-        MN_SYMBOL Pipeline build() const;
+        [[nodiscard]] MN_SYMBOL Pipeline build() const;
 
     private:
         std::pair<uint32_t, uint32_t> size;
