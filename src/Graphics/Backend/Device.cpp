@@ -67,7 +67,9 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
             VK_KHR_DEVICE_GROUP_EXTENSION_NAME,
             VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
             VK_KHR_MULTIVIEW_EXTENSION_NAME,
-            VK_KHR_MAINTENANCE2_EXTENSION_NAME
+            VK_KHR_MAINTENANCE2_EXTENSION_NAME,
+            VK_KHR_MAINTENANCE3_EXTENSION_NAME,
+            VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME   
         };
 
         uint32_t count;
@@ -93,9 +95,19 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         return enabledExtensions;
     }(static_cast<VkPhysicalDevice>(p_device));
 
+    VkPhysicalDeviceDescriptorIndexingFeatures indexing_features = 
+    {
+        .pNext = nullptr,
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+        .descriptorBindingSampledImageUpdateAfterBind = true,
+        .descriptorBindingUpdateUnusedWhilePending = true,
+        .descriptorBindingPartiallyBound = true,
+        .descriptorBindingVariableDescriptorCount = true
+    };
+
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_render = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-        .pNext = nullptr,
+        .pNext = &indexing_features,
         .dynamicRendering = VK_TRUE
     };
 
@@ -114,7 +126,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
     };
 
     VkPhysicalDeviceFeatures features = {
-        .fillModeNonSolid = VK_TRUE
+        .fillModeNonSolid = VK_TRUE,
     };
 
     VkDeviceCreateInfo create_info = {
@@ -143,10 +155,31 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
         .handle = _gq,
         .index  = graphics_index
     };
+
+    // Create Samplers
+    VkSampler sample;
+    VkSamplerCreateInfo sampler_create_info{};
+    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+    // Nearest
+    sampler_create_info.magFilter = VK_FILTER_NEAREST;
+    sampler_create_info.minFilter = VK_FILTER_NEAREST;
+    MIDNIGHT_ASSERT(vkCreateSampler(_device, &sampler_create_info, nullptr, &sample) == VK_SUCCESS, "Failed to create nearest sampler");
+    samplers[Sampler::Nearest] = std::make_shared<Sampler>(Sampler{ .handle = static_cast<mn::handle_t>(sample) });
+
+    // Linear
+    sampler_create_info.magFilter = VK_FILTER_LINEAR;
+    sampler_create_info.minFilter = VK_FILTER_LINEAR;
+    MIDNIGHT_ASSERT(vkCreateSampler(_device, &sampler_create_info, nullptr, &sample) == VK_SUCCESS, "Failed to create linear sampler");
+    samplers[Sampler::Linear] = std::make_shared<Sampler>(Sampler{ .handle = static_cast<mn::handle_t>(sample) });
+    std::cout << "Successfully created samplers\n";
 }
 
 Device::~Device()
 {
+    for (const auto& [ type, sampler ] : samplers)
+        vkDestroySampler(handle.as<VkDevice>(), static_cast<VkSampler>(sampler->handle), nullptr);
+
     if (handle)
     {
         vkDestroyDevice(handle.as<VkDevice>(), nullptr);
@@ -253,7 +286,7 @@ std::pair<Handle<Image>, mn::handle_t> Device::createImage(const Math::Vec2u& si
         .arrayLayers = 1,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
+        .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | static_cast<VkImageUsageFlags>(depth ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
     };
 
     VmaAllocationCreateInfo alloc_create_info = {
@@ -335,6 +368,34 @@ void Device::destroyCommandPool(Handle<CommandPool> pool) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroyCommandPool(handle.as<VkDevice>(), pool.as<VkCommandPool>(), nullptr);
+}
+
+void Device::immediateSubmit(std::function<void(Backend::CommandBuffer&)> func) const
+{
+    Backend::Fence f;
+    f.reset();
+    Backend::CommandPool pool;
+
+    auto cmd = pool.allocateBuffer();
+    cmd->begin();
+    func(*cmd);
+    cmd->end();
+
+    const auto buffer = cmd->getHandle().as<VkCommandBuffer>();
+    VkSubmitInfo submit{};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.pNext = nullptr;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &buffer;
+
+    const auto err = vkQueueSubmit(
+        static_cast<VkQueue>(graphics.handle),
+        1, 
+        &submit, 
+        f.getHandle().as<VkFence>()
+    );
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error immediately submitting command buffer");
+    f.wait();
 }
 
 Handle<CommandBuffer> Device::createCommandBuffer(Handle<CommandPool> command_pool) const
@@ -426,6 +487,11 @@ void Device::destroyShader(Handle<Shader> shader) const
 {
     MIDNIGHT_ASSERT(handle, "Invalid device");
     vkDestroyShaderModule(handle.as<VkDevice>(), shader.as<VkShaderModule>(), nullptr);
+}
+
+std::shared_ptr<Sampler> Device::getSampler(Sampler::Type type)
+{
+    return samplers[type];
 }
 
 }

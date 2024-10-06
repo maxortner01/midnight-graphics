@@ -17,6 +17,7 @@ namespace mn::Graphics
         friend struct Window;
 
         const uint32_t image_index;
+        std::stack<std::shared_ptr<const Image>> image_stack;
         std::shared_ptr<const Image> image;
 
         MN_SYMBOL void startRender();
@@ -31,6 +32,8 @@ namespace mn::Graphics
             setPushConstant(pipeline, reinterpret_cast<const void*>(&value));
         }
 
+        MN_SYMBOL void blit(std::shared_ptr<const Image> source, std::shared_ptr<const Image> destination) const;
+
         MN_SYMBOL void draw(const Pipeline& pipeline, uint32_t vertices, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const Pipeline& pipeline, const Buffer& buffer, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t instances = 1) const;
@@ -40,6 +43,11 @@ namespace mn::Graphics
         MN_SYMBOL void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances = 1) const;
 
     private:
+        std::shared_ptr<const Image> get_image() const
+        {
+            return (image_stack.size() ? image_stack.top() : image);
+        }
+
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }
 
         std::shared_ptr<FrameData> frame_data;

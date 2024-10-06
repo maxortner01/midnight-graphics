@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Backend/Device.hpp"
 #include "Buffer.hpp"
 #include "ObjectHandle.hpp"
 
@@ -9,6 +10,7 @@
 
 namespace mn::Graphics
 {
+    struct Image;
     struct Pipeline;
 
     enum class ShaderType
@@ -55,6 +57,23 @@ namespace mn::Graphics
 
     struct PipelineBuilder;
 
+    struct DescriptorSet : ObjectHandle<DescriptorSet>
+    {
+        friend struct PipelineBuilder;
+
+        DescriptorSet(const DescriptorSet&) = delete;
+        DescriptorSet(DescriptorSet&&) = default;
+
+        MN_SYMBOL ~DescriptorSet();
+
+        void setImages(uint32_t binding, Backend::Sampler::Type sampler, const std::vector<std::shared_ptr<Image>>& images);
+
+    private:
+        DescriptorSet(Handle<DescriptorSet> h) : ObjectHandle(h) {  }
+
+        mn::handle_t layout, pool;
+    };
+
     struct Pipeline : ObjectHandle<Pipeline>
     {
         friend struct PipelineBuilder;
@@ -75,9 +94,15 @@ namespace mn::Graphics
             setPushConstant(cmd, reinterpret_cast<const void*>(&value));
         }
 
+        bool hasSet() const { return set.get(); }
+        const std::unique_ptr<DescriptorSet>& getSet() const { return set; }
+
+        auto getLayoutHandle() const { return layout; }
+
     private:
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
 
+        std::unique_ptr<DescriptorSet> set;
         uint32_t push_constant_size;
         std::vector<uint32_t> binding_strides;
         mn::handle_t layout;
@@ -99,6 +124,7 @@ namespace mn::Graphics
         MN_SYMBOL PipelineBuilder& setSize(uint32_t w, uint32_t h);
         MN_SYMBOL PipelineBuilder& setColorFormat(uint32_t c);
         MN_SYMBOL PipelineBuilder& setDepthFormat(uint32_t d);
+        MN_SYMBOL PipelineBuilder& addTextureBinding();
         
         template<typename T>
         PipelineBuilder& setPushConstantObject()
@@ -110,6 +136,15 @@ namespace mn::Graphics
         [[nodiscard]] MN_SYMBOL Pipeline build() const;
 
     private:
+        struct Binding
+        {
+            enum Type
+            {
+                Texture
+            } type;
+        };
+    
+        std::vector<Binding> bindings;
         std::pair<uint32_t, uint32_t> size;
         std::unordered_map<ShaderType, std::shared_ptr<Shader>> modules;
         Topology top  = Topology::Triangles;

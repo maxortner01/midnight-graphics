@@ -105,6 +105,8 @@ namespace mn::Graphics
 
         void resize(const uint32_t& count)
         {
+            if (count == this->count) return; 
+            
             // If count < this->count, we need to call the destructors
             for (uint32_t i = count; i < this->count; i++)
                 reinterpret_cast<T*>(memory.rawData() + i * sizeof(T))->~T();

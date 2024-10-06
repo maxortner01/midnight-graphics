@@ -38,6 +38,8 @@ namespace mn::Graphics
             return;
         }
 
+        if (newsize == _size) return;
+
         const auto old_size = _size;
         void* current_data = nullptr;
         if (handle) 
@@ -55,6 +57,7 @@ namespace mn::Graphics
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT   | 
                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | 
                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT   |
+                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT   |
                      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR
         };
 

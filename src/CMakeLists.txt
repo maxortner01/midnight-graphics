@@ -34,6 +34,7 @@ add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Pipeline.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/RenderFrame.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Buffer.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Texture.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Image.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Model.cpp
 
@@ -47,5 +48,6 @@ target_include_directories(midnight-graphics
         ${MIDNIGHT_BASE_DIR}/include 
         ${MIDNIGHT_BASE_DIR}/include/midnight 
     PRIVATE 
-        ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect)
+        ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect
+        ${MIDNIGHT_BASE_DIR}/extern/stb)
     target_compile_definitions(midnight-graphics PRIVATE -DMN_BUILD)

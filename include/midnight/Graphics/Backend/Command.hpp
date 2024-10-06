@@ -2,6 +2,12 @@
 
 #include <Def.hpp>
 
+namespace mn::Graphics
+{
+    struct Image;
+    struct Buffer;
+}
+
 namespace mn::Graphics::Backend
 {
     struct CommandBuffer;
@@ -14,6 +20,7 @@ namespace mn::Graphics::Backend
         CommandPool(const CommandPool&) = delete;
         CommandPool(CommandPool&&) = default;
 
+        void reset() const;
         std::unique_ptr<CommandBuffer> allocateBuffer() const;
 
     private:
@@ -32,6 +39,8 @@ namespace mn::Graphics::Backend
         void reset() const;
 
         auto getHandle() const { return handle; }
+
+        void bufferToImage(std::shared_ptr<Buffer> buffer, std::shared_ptr<Image> image) const;
 
     private:    
         CommandBuffer(Handle<CommandPool> pool);

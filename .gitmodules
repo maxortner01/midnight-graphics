@@ -13,3 +13,6 @@
 [submodule "extern/VMA"]
 	path = extern/VMA
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "extern/stb"]
+	path = extern/stb
+	url = https://github.com/nothings/stb

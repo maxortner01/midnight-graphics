@@ -32,7 +32,7 @@ namespace mn::Graphics
             device->createImage(size, format, depth);
         a.view = device->createImageView(a.handle, format, depth);
         a.format = format;
-        a.size = size;
+        a.size = size; 
 
         image->attachments[T] = std::move(a);
 

@@ -1,8 +1,10 @@
 #include <Graphics/Backend/Instance.hpp>
 #include <Graphics/Pipeline.hpp>
 #include <Graphics/Buffer.hpp>
+#include <Graphics/Image.hpp>
 #include <Graphics/Backend/Command.hpp>
 
+#include <set>
 #include <Def.hpp>
 
 #include <algorithm>
@@ -104,6 +106,7 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
         // this is a crappy way of doing this
         std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_VertexIndex") != std::string::npos); });
         std::erase_if(vars, [](const auto* var) { return (std::string(var->name).find("gl_InstanceIndex") != std::string::npos); });
+        std::sort(vars.begin(), vars.end(), [](auto*& a, auto*& b) { return a->location < b->location; });
 
         attributes.emplace(std::vector<Attribute>()); 
         for (const auto* var : vars)
@@ -130,6 +133,42 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
     }
 }
 
+DescriptorSet::~DescriptorSet()
+{
+    auto& device = Backend::Instance::get()->getDevice();
+    vkDestroyDescriptorPool(device->getHandle().as<VkDevice>(), static_cast<VkDescriptorPool>(pool), nullptr);
+    vkDestroyDescriptorSetLayout(device->getHandle().as<VkDevice>(), static_cast<VkDescriptorSetLayout>(layout), nullptr);
+}
+
+void DescriptorSet::setImages(uint32_t binding, Backend::Sampler::Type type, const std::vector<std::shared_ptr<Image>>& images)
+{
+    auto& device = Backend::Instance::get()->getDevice();
+    auto sampler = device->getSampler(type);
+
+    std::vector<VkDescriptorImageInfo> infos;
+    infos.reserve(images.size());
+    for (const auto& image : images)
+    {
+        const auto& color = image->getAttachment<Image::Color>();
+        infos.push_back(VkDescriptorImageInfo{
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageView = static_cast<VkImageView>(color.view),
+            .sampler = static_cast<VkSampler>(sampler->handle)
+        });
+    }
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.descriptorCount = infos.size();
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.dstSet = static_cast<VkDescriptorSet>(handle);
+    write.dstBinding = binding;
+    write.dstArrayElement = 0;
+    write.pImageInfo = infos.data();
+
+    vkUpdateDescriptorSets(device->getHandle().as<VkDevice>(), 1, &write, 0, nullptr);
+}
+
 Pipeline::~Pipeline()
 {
     auto& device = Backend::Instance::get()->getDevice();
@@ -145,10 +184,10 @@ Pipeline::~Pipeline()
         layout = nullptr;
     }
 }
-
+// TODO: Need to be able to specify vertex or fragment
 void Pipeline::setPushConstant(const std::unique_ptr<Backend::CommandBuffer>& cmd, const void* data) const
 {
-    vkCmdPushConstants(cmd->getHandle().as<VkCommandBuffer>(), static_cast<VkPipelineLayout>(layout), VK_SHADER_STAGE_VERTEX_BIT, 0, push_constant_size, data);
+    vkCmdPushConstants(cmd->getHandle().as<VkCommandBuffer>(), static_cast<VkPipelineLayout>(layout), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, push_constant_size, data);
 }
 
 PipelineBuilder PipelineBuilder::fromLua(const std::string& source_dir, const std::string& script)
@@ -236,6 +275,12 @@ PipelineBuilder& PipelineBuilder::setDepthFormat(uint32_t d)
     return *this;
 }
 
+PipelineBuilder& PipelineBuilder::addTextureBinding()
+{
+    bindings.push_back(Binding{ .type = Binding::Texture });
+    return *this;
+}
+
 PipelineBuilder& PipelineBuilder::setCullDirection(bool clockwise)
 {
     this->clockwise = clockwise;
@@ -247,22 +292,126 @@ Pipeline PipelineBuilder::build() const
     // If fixed state, then we need to assert
     //MIDNIGHT_ASSERT(size.first * size.second > 0, "Error building pipeline: Extent has zero area");
 
+    std::unique_ptr<DescriptorSet> desc;
+
     const auto layout = [&]()
     {
         auto& device = Backend::Instance::get()->getDevice();
 
+        // Construct the set here if necessary
+        if (bindings.size())
+        {
+            std::unordered_map<VkDescriptorType, uint32_t> types;
+            const auto get_type = [&](Binding::Type t)
+            {
+                switch (t)
+                {
+                case Binding::Type::Texture: 
+                    types[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER]++;
+                    return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                }
+            };
+
+            std::vector<VkDescriptorSetLayoutBinding> _bindings;
+            std::vector<VkDescriptorBindingFlagsEXT> _binding_flags;
+            std::vector<uint32_t> counts(bindings.size(), 16);
+            for (uint32_t i = 0; i < bindings.size(); i++)
+            {
+                _bindings.push_back(VkDescriptorSetLayoutBinding {
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .binding = i,
+                    .descriptorCount = 16,
+                    .descriptorType = get_type(bindings[i].type)
+                });
+
+                _binding_flags.push_back(
+                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |
+                    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
+                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT |
+                    VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT);
+            }
+
+            VkDescriptorSetLayoutCreateInfo layout_create_info;
+            layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layout_create_info.bindingCount = _bindings.size();
+            layout_create_info.pBindings = _bindings.data();
+            layout_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
+            binding_flags.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+            binding_flags.bindingCount   = _binding_flags.size();
+            binding_flags.pBindingFlags  = _binding_flags.data();
+            layout_create_info.pNext = &binding_flags;
+
+            VkDescriptorSetLayout desc_layout;
+            MIDNIGHT_ASSERT(vkCreateDescriptorSetLayout(
+                device->getHandle().as<VkDevice>(), 
+                &layout_create_info, 
+                nullptr, 
+                &desc_layout) == VK_SUCCESS, "Error creating descriptor layout");
+            
+            std::vector<VkDescriptorPoolSize> pool_sizes;
+            for (const auto& [type, count] : types)
+                pool_sizes.push_back(VkDescriptorPoolSize {
+                    .type = type,
+                    .descriptorCount = count * 16
+                });
+
+            VkDescriptorPoolCreateInfo pool_create_info{};
+            pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            pool_create_info.pNext = nullptr;
+            pool_create_info.poolSizeCount = pool_sizes.size();
+            pool_create_info.pPoolSizes = pool_sizes.data();
+            pool_create_info.maxSets = 1;
+            pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
+            VkDescriptorPool pool;
+            MIDNIGHT_ASSERT(vkCreateDescriptorPool(
+                device->getHandle().as<VkDevice>(), 
+                &pool_create_info, 
+                nullptr, 
+                &pool) == VK_SUCCESS, "Failed to create descriptor pool");
+
+            VkDescriptorSetVariableDescriptorCountAllocateInfo variable_alloc{};
+            variable_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+            variable_alloc.pNext = nullptr;
+            variable_alloc.descriptorSetCount = counts.size();
+            variable_alloc.pDescriptorCounts = counts.data();
+
+            VkDescriptorSetAllocateInfo alloc_info{};
+            alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            alloc_info.pNext = &variable_alloc;
+            alloc_info.descriptorPool = pool;
+            alloc_info.descriptorSetCount = 1;
+            alloc_info.pSetLayouts = &desc_layout;
+
+            VkDescriptorSet set;
+            MIDNIGHT_ASSERT(vkAllocateDescriptorSets(
+                device->getHandle().as<VkDevice>(), 
+                &alloc_info, 
+                &set) == VK_SUCCESS, "Failed to create set");
+            
+            desc = std::unique_ptr<DescriptorSet>(new DescriptorSet(set));
+            desc->pool = pool;
+            desc->layout = desc_layout;
+        }
+
+        // TODO: Need to be able to specify vertex and/or fragment
         VkPushConstantRange push_constant = {
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             .offset = 0,
             .size = push_constant_size
         };
+
+        VkDescriptorSetLayout l = nullptr;
+        if (desc) l = static_cast<VkDescriptorSetLayout>(desc->layout);
 
         VkPipelineLayoutCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .setLayoutCount = 0,
-            .pSetLayouts = nullptr,
+            .setLayoutCount = ( desc ? 1U : 0U ),
+            .pSetLayouts = &l,
             .pushConstantRangeCount = ( push_constant_size ? 1U : 0U ),
             .pPushConstantRanges = &push_constant
         };
@@ -524,6 +673,7 @@ Pipeline PipelineBuilder::build() const
     p->binding_strides.push_back(binding.stride);
     p->layout = layout;
     p->push_constant_size = push_constant_size;
+    p->set = std::move(desc);
 
     return std::move(*p.release());
 }

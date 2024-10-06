@@ -70,6 +70,19 @@ Model Model::fromLua(const std::string& lua_file)
         });
     });
 
+    model->try_get<SL::Table>("normals", [&](const SL::Table& normals)
+    {
+        normals.each<SL::Table>([&](uint32_t i, const SL::Table& normal)
+        {
+            f.vertices[i - 1].normal = { 
+                normal.get<SL::Number>("1"),
+                normal.get<SL::Number>("2"),
+                normal.get<SL::Number>("3"),
+                normal.get<SL::Number>("4") 
+            };
+        });
+    });
+
     model->try_get<SL::Table>("indices", [&](const SL::Table& indices)
     {
         indices.each<SL::Number>([&](uint32_t i, const SL::Number& index)

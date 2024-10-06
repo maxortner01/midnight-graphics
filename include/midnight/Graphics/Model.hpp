@@ -16,6 +16,7 @@ namespace mn::Graphics
         {
             mn::Math::Vec3f position, normal;
             mn::Math::Vec4f color;
+            mn::Math::Vec2f tex_coords;
         };
 
         struct Frame

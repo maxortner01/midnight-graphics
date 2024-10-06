@@ -24,6 +24,16 @@ namespace mn::Graphics::Backend
         uint32_t index;
     };
 
+    struct Sampler
+    {
+        enum Type
+        {
+            Nearest, Linear
+        };
+
+        mn::handle_t handle;
+    };
+
     struct Device
     {
         Device(Handle<Instance> instance, handle_t p_device);
@@ -52,6 +62,8 @@ namespace mn::Graphics::Backend
 
         Handle<CommandBuffer> createCommandBuffer(Handle<CommandPool> command_pool) const;
 
+        void immediateSubmit(std::function<void(Backend::CommandBuffer&)> func) const;
+
         Handle<Semaphore> createSemaphore() const;
         void destroySemaphore(Handle<Semaphore> semaphore) const;
 
@@ -61,10 +73,13 @@ namespace mn::Graphics::Backend
         Handle<Shader> createShader(const std::vector<uint32_t>& data) const;
         void destroyShader(Handle<Shader> shader) const;
 
+        std::shared_ptr<Sampler> getSampler(Sampler::Type type);
+
     private:
         Handle<Device> handle;
         mn::handle_t   physical_device;
 
+        std::unordered_map<Sampler::Type, std::shared_ptr<Sampler>> samplers;
         Queue graphics;
     };
 }

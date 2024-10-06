@@ -26,7 +26,9 @@ namespace mn::Graphics
 
         enum Format : u32
         {
-            DF32_SU8 = 130
+            DF32_SU8 = 130,
+            R8G8B8A8_UNORM = 37,
+            B8G8R8A8_UNORM = 44
         };
 
         Image(const Image&) = delete;
