@@ -11,6 +11,7 @@ namespace mn::Graphics
 namespace mn::Graphics::Backend
 {
     struct CommandBuffer;
+    struct Fence;
 
     struct CommandPool
     {
@@ -39,7 +40,7 @@ namespace mn::Graphics::Backend
         void reset() const;
 
         auto getHandle() const { return handle; }
-
+        void submit(std::shared_ptr<Fence> fence) const;
         void bufferToImage(std::shared_ptr<Buffer> buffer, std::shared_ptr<Image> image) const;
 
     private:    

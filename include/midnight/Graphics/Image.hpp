@@ -44,6 +44,9 @@ namespace mn::Graphics
         }
 
         template<Type T>
+        void rebuildAttachment(u32 format, Math::Vec2u size);
+
+        template<Type T>
         const Attachment& 
         getAttachment() const
         {

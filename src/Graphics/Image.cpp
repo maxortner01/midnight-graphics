@@ -5,25 +5,8 @@
 
 namespace mn::Graphics
 {
-    Image::~Image()
-    {
-        auto& device = Backend::Instance::get()->getDevice();
-        for (auto& [ type, a ] : attachments)
-        {
-            device->destroyImageView(a.view);
-
-            if (a.allocation)
-                device->destroyImage(a.handle, a.allocation);
-        }
-    }
-
-    ImageFactory::ImageFactory() :
-        image(std::unique_ptr<Image>(new Image()))
-    {   }
-
     template<Image::Type T>
-    ImageFactory& 
-    ImageFactory::addAttachment(u32 format, const Math::Vec2u& size)
+    Image::Attachment make_attachment(u32 format, Math::Vec2u size)
     {
         constexpr bool depth = (T == Image::DepthStencil);
         auto& device = Backend::Instance::get()->getDevice();
@@ -33,9 +16,39 @@ namespace mn::Graphics
         a.view = device->createImageView(a.handle, format, depth);
         a.format = format;
         a.size = size; 
+        return a;
+    }
 
-        image->attachments[T] = std::move(a);
+    Image::~Image()
+    {
+        auto& device = Backend::Instance::get()->getDevice();
+        for (const auto& [ _, a ] : attachments)
+        {
+            device->destroyImageView(a.view);
+            if (a.allocation)
+                device->destroyImage(a.handle, a.allocation);
+        }
+    }
 
+    template<Image::Type T>
+    void Image::rebuildAttachment(u32 format, Math::Vec2u size)
+    {
+        auto& device = Backend::Instance::get()->getDevice();
+        attachments.erase(T);
+        attachments[T] = make_attachment<T>(format, size);
+    }
+    template void Image::rebuildAttachment<Image::Type::Color>(u32, Math::Vec2u);
+    template void Image::rebuildAttachment<Image::Type::DepthStencil>(u32, Math::Vec2u);
+
+    ImageFactory::ImageFactory() :
+        image(std::unique_ptr<Image>(new Image()))
+    {   }
+
+    template<Image::Type T>
+    ImageFactory& 
+    ImageFactory::addAttachment(u32 format, const Math::Vec2u& size)
+    {
+        image->attachments[T] = make_attachment<T>(format, size);
         return *this;
     }
     template ImageFactory& ImageFactory::addAttachment<Image::Color>(u32, const Math::Vec2u&);

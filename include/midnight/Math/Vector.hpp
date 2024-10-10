@@ -10,6 +10,8 @@ namespace mn::Math
     template<std::size_t C, typename T>
     struct Vec
     {
+        inline constexpr static std::size_t Size = C;
+
         T c[C];
 
         Vec()

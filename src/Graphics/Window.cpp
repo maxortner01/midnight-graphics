@@ -3,6 +3,10 @@
 
 #include <Graphics/Backend/Instance.hpp>
 
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <backends/imgui_impl_sdl3.h>
+
 #include <SL/Lua.hpp>
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
@@ -38,6 +42,42 @@ void FrameData::destroy()
 Window::Window(const Math::Vec2u& size, const std::string& name)
 {
     _open(size, name);
+
+    // IF IMGUI
+    ImGui::CreateContext();
+    ImGui_ImplSDL3_InitForVulkan(handle.as<SDL_Window*>());
+    const auto& instance = Backend::Instance::get();
+
+    VkPipelineRenderingCreateInfoKHR c_info{};
+    
+    const auto format = VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
+    c_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    c_info.colorAttachmentCount = 1;
+    c_info.pColorAttachmentFormats = &format;
+    c_info.depthAttachmentFormat = VkFormat::VK_FORMAT_D32_SFLOAT_S8_UINT;
+
+    ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = instance->getHandle().as<VkInstance>();
+	init_info.PhysicalDevice = static_cast<VkPhysicalDevice>( instance->getDevice()->getPhysicalDevice() );
+	init_info.Device = instance->getDevice()->getHandle().as<VkDevice>();
+	init_info.Queue = static_cast<VkQueue>( instance->getDevice()->getGraphicsQueue().handle );
+	init_info.DescriptorPool = static_cast<VkDescriptorPool>( instance->getDevice()->getImGuiPool() );
+    init_info.PipelineRenderingCreateInfo = c_info;
+    init_info.UseDynamicRendering = true;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    // Actually create the imgui image
+    /*
+    imgui_surface = std::make_shared<Image>(
+        ImageFactory()
+            .addAttachment<Image::Color>(Image::B8G8R8A8_UNORM, size)
+            .build()
+    );*/
+
+    ImGui_ImplVulkan_Init(&init_info);
+    ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 Window::Window(const std::string& config_file)
@@ -61,18 +101,9 @@ Window::Window(const std::string& config_file)
     _open({ width, height }, title);   
 }
 
-void Window::_open(const Math::Vec2u& req_size, const std::string& name)
+void Window::construct_swapchain()
 {
-    // Create the window
-    handle = static_cast<handle_t>(SDL_CreateWindow(name.c_str(), Math::x(req_size), Math::y(req_size), SDL_WINDOW_VULKAN));
-    MIDNIGHT_ASSERT(handle, "Error initializing window");
-    
-    _size = req_size;
-
-    auto instance = mn::Graphics::Backend::Instance::get();
-    const auto& device = instance->getDevice();
-    surface   = instance->createSurface(handle);
-
+    auto& device = Backend::Instance::get()->getDevice();
     const auto [ s, _images, format, size ] = device->createSwapchain(handle, surface);
     for (const auto& image : _images)
     {
@@ -83,8 +114,22 @@ void Window::_open(const Math::Vec2u& req_size, const std::string& name)
                 .build()
         ));
     }
-
     swapchain = s;
+}
+
+void Window::_open(const Math::Vec2u& req_size, const std::string& name)
+{
+    // Create the window
+    handle = static_cast<handle_t>(SDL_CreateWindow(name.c_str(), Math::x(req_size), Math::y(req_size), SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE));
+    MIDNIGHT_ASSERT(handle, "Error initializing window");
+    
+    _size = req_size;
+
+    auto instance = mn::Graphics::Backend::Instance::get();
+    const auto& device = instance->getDevice();
+    surface   = instance->createSurface(handle);
+
+    construct_swapchain();
 
     uint32_t concurrent_frames = 2;
     for (uint32_t i = 0; i < concurrent_frames; i++)
@@ -118,15 +163,62 @@ void Window::close()
     _close = true;
 }
 
+char key(SDL_Keycode code)
+{
+    switch (code)
+    {
+    case SDLK_W: return 'w';
+    case SDLK_S: return 's';
+    case SDLK_A: return 'a';
+    case SDLK_D: return 'd';
+    default: return ' ';
+    }
+}
+
 bool Window::pollEvent(Event& event) const
 {
     SDL_Event e;
     const auto res = SDL_PollEvent(&e);
+    event.event = Event::None{};
 
+    // We need to rebuild the swapchain 
+    auto io = ImGui::GetIO();
+
+    //if (!ImGui_ImplSDL3_ProcessEvent(&e))
+    ImGui_ImplSDL3_ProcessEvent(&e);
     switch (e.type)
     {
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
         event.event = Event::Quit{};
+        break;
+    case SDL_EVENT_WINDOW_RESIZED:
+    {
+        const uint32_t new_width  = e.window.data1;
+        const uint32_t new_height = e.window.data2;
+
+        auto& device = Backend::Instance::get()->getDevice();
+        device->waitForIdle();
+
+        device->destroySwapchain(swapchain);
+        // Gross
+        auto* abused_window = const_cast<Window*>(this);
+        abused_window->images.clear();
+        abused_window->construct_swapchain();
+
+        event.event = Event::WindowSize{ .new_width = new_width, .new_height = new_height };
+        break;
+    }
+    case SDL_EVENT_MOUSE_MOTION:
+        if (!io.WantCaptureMouse)
+            event.event = Event::MouseMove{ .delta = { e.motion.xrel, e.motion.yrel } };
+        break;
+    case SDL_EVENT_KEY_DOWN:
+        if (!io.WantCaptureKeyboard)
+            event.event = Event::Key { .key = (char)e.key.key, .type = Event::ButtonType::Press };
+        break;
+    case SDL_EVENT_KEY_UP:
+        if (!io.WantCaptureKeyboard)
+            event.event = Event::Key { .key = (char)e.key.key, .type = Event::ButtonType::Release };
         break;
     default: 
         event.event = Event::None{};
@@ -177,6 +269,7 @@ RenderFrame Window::startFrame() const
 {
     auto next_frame = get_next_frame();
     next_frame->render_fence->wait();
+    // Free resources
     next_frame->render_fence->reset();
     auto n_image = next_image_index(next_frame);
 
@@ -194,16 +287,34 @@ RenderFrame Window::startFrame() const
     RenderFrame frame(n_image, images[n_image]);
     frame.frame_data = next_frame;
 
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
     return frame;
 }
 
 void Window::endFrame(RenderFrame& rf) const
 {
-    // All this code essentially copied...
+    ImGui::Render();
+
+    // Render the ImGui data onto the surface
+    //rf.image_stack.push(imgui_surface);
+    //rf.clear({ 0.f, 0.f, 0.f }, 0.f);
+    rf.startRender();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), rf.frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
+    rf.endRender();
+    //rf.image_stack.pop();
     
     auto _image = static_cast<VkImage>(images[rf.image_index]->getAttachment<Image::Color>().handle);
     auto _cmd   = rf.frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    // Blit the imgui surface onto the main image
+    // Blitting doesn't handle alpha, so here we'd actually want to draw a quad...
+    // Currently don't have a nice way to do that
+    //rf.blit(imgui_surface, images[rf.image_index]);
+
     rf.frame_data->command_buffer->end();
 
     //SDL_UpdateWindowSurface(static_cast<SDL_Window*>(handle));
@@ -260,9 +371,11 @@ void Window::endFrame(RenderFrame& rf) const
     
 	//submit command buffer to the queue and execute it.
 	// _renderFence will now block until the graphic commands finish execution
-    PFN_vkVoidFunction pvkQueueSubmit2KHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkQueueSubmit2KHR");
-    ((PFN_vkQueueSubmit2KHR)(pvkQueueSubmit2KHR))(static_cast<VkQueue>(device->getGraphicsQueue().handle), 1, &submit, rf.frame_data->render_fence->getHandle().as<VkFence>());
-
+    {
+        // Lock the crap up here
+        PFN_vkVoidFunction pvkQueueSubmit2KHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkQueueSubmit2KHR");
+        ((PFN_vkQueueSubmit2KHR)(pvkQueueSubmit2KHR))(static_cast<VkQueue>(device->getGraphicsQueue().handle), 1, &submit, rf.frame_data->render_fence->getHandle().as<VkFence>());
+    }
     const auto _swapchain = static_cast<VkSwapchainKHR>(swapchain);
     const auto _sema = static_cast<VkSemaphore>(rf.frame_data->render_sem->getHandle());
     VkPresentInfoKHR presentInfo = {};
@@ -298,8 +411,19 @@ void Window::finishWork() const
     vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
 }
 
+void Window::setMousePos(Math::Vec2f position)
+{
+    auto flags = SDL_GetWindowFlags(handle.as<SDL_Window*>());
+    if (flags & SDL_WINDOW_INPUT_FOCUS)
+        SDL_WarpMouseInWindow(handle.as<SDL_Window*>(), Math::x(position), Math::y(position));
+}
+
 Window::~Window()
 {
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+
     if (handle)
     {
 	    finishWork();

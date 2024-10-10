@@ -1,4 +1,5 @@
 #include <Graphics/Backend/Command.hpp>
+#include <Graphics/Backend/Sync.hpp>
 #include <Graphics/Backend/Instance.hpp>
 #include <Graphics/Image.hpp>
 #include <Graphics/Buffer.hpp>
@@ -62,6 +63,26 @@ void CommandBuffer::reset() const
 {
     const auto err = vkResetCommandBuffer(handle.as<VkCommandBuffer>(), 0);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error reseting command buffer: " << err);
+}
+
+void CommandBuffer::submit(std::shared_ptr<Fence> fence) const
+{
+    auto& device = Instance::get()->getDevice();
+
+    const auto buffer = handle.as<VkCommandBuffer>();
+    VkSubmitInfo submit{};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.pNext = nullptr;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &buffer;
+
+    const auto err = vkQueueSubmit(
+        static_cast<VkQueue>(device->getGraphicsQueue().handle),
+        1, 
+        &submit, 
+        fence->getHandle().as<VkFence>()
+    );
+    MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error immediately submitting command buffer");
 }
 
 // Should make this a function in Backend::Device, it's copied from RenderFrame.cpp

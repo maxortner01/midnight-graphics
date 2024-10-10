@@ -133,6 +133,8 @@ void Shader::fromSpv(const std::vector<uint32_t>& data, ShaderType type)
     }
 }
 
+/*
+
 DescriptorSet::~DescriptorSet()
 {
     auto& device = Backend::Instance::get()->getDevice();
@@ -167,7 +169,7 @@ void DescriptorSet::setImages(uint32_t binding, Backend::Sampler::Type type, con
     write.pImageInfo = infos.data();
 
     vkUpdateDescriptorSets(device->getHandle().as<VkDevice>(), 1, &write, 0, nullptr);
-}
+}*/
 
 Pipeline::~Pipeline()
 {
@@ -275,9 +277,10 @@ PipelineBuilder& PipelineBuilder::setDepthFormat(uint32_t d)
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::addTextureBinding()
+PipelineBuilder& PipelineBuilder::addSet(Descriptor& d)
 {
-    bindings.push_back(Binding{ .type = Binding::Texture });
+    setLayouts.push_back(d.getLayoutHandle());
+    sets.push_back(d.getHandle());
     return *this;
 }
 
@@ -291,16 +294,21 @@ Pipeline PipelineBuilder::build() const
 {
     // If fixed state, then we need to assert
     //MIDNIGHT_ASSERT(size.first * size.second > 0, "Error building pipeline: Extent has zero area");
-
-    std::unique_ptr<DescriptorSet> desc;
+    
+    //std::unique_ptr<DescriptorSet> desc;
 
     const auto layout = [&]()
     {
         auto& device = Backend::Instance::get()->getDevice();
-
+        /*
         // Construct the set here if necessary
         if (bindings.size())
         {
+            //const std::unordered_map<VkDescriptorType, uint32_t> sizes = {
+                //{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 640 },
+                //{ VK_DESCRIPTOR_TYPE_SAMPLER, 4 }
+            //};
+
             std::unordered_map<VkDescriptorType, uint32_t> types;
             const auto get_type = [&](Binding::Type t)
             {
@@ -312,16 +320,23 @@ Pipeline PipelineBuilder::build() const
                 }
             };
 
+            // We need two bindings
+            // One binding for textures
+            // Another for samplers, we really only have the two samplers from the device
+
+            // Hardcoded for now. We add a variable descriptor for the textures and a size 2 descriptor for samplers
+
             std::vector<VkDescriptorSetLayoutBinding> _bindings;
             std::vector<VkDescriptorBindingFlagsEXT> _binding_flags;
             std::vector<uint32_t> counts(bindings.size(), 16);
             for (uint32_t i = 0; i < bindings.size(); i++)
             {
+                const auto binding_type = get_type(bindings[i].type);
                 _bindings.push_back(VkDescriptorSetLayoutBinding {
                     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                     .binding = i,
                     .descriptorCount = 16,
-                    .descriptorType = get_type(bindings[i].type)
+                    .descriptorType = binding_type
                 });
 
                 _binding_flags.push_back(
@@ -354,7 +369,7 @@ Pipeline PipelineBuilder::build() const
             for (const auto& [type, count] : types)
                 pool_sizes.push_back(VkDescriptorPoolSize {
                     .type = type,
-                    .descriptorCount = count * 16
+                    .descriptorCount = 16 
                 });
 
             VkDescriptorPoolCreateInfo pool_create_info{};
@@ -394,7 +409,7 @@ Pipeline PipelineBuilder::build() const
             desc = std::unique_ptr<DescriptorSet>(new DescriptorSet(set));
             desc->pool = pool;
             desc->layout = desc_layout;
-        }
+        }*/
 
         // TODO: Need to be able to specify vertex and/or fragment
         VkPushConstantRange push_constant = {
@@ -403,15 +418,12 @@ Pipeline PipelineBuilder::build() const
             .size = push_constant_size
         };
 
-        VkDescriptorSetLayout l = nullptr;
-        if (desc) l = static_cast<VkDescriptorSetLayout>(desc->layout);
-
         VkPipelineLayoutCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .setLayoutCount = ( desc ? 1U : 0U ),
-            .pSetLayouts = &l,
+            .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+            .pSetLayouts = reinterpret_cast<const VkDescriptorSetLayout*>(setLayouts.data()),
             .pushConstantRangeCount = ( push_constant_size ? 1U : 0U ),
             .pPushConstantRanges = &push_constant
         };
@@ -673,7 +685,8 @@ Pipeline PipelineBuilder::build() const
     p->binding_strides.push_back(binding.stride);
     p->layout = layout;
     p->push_constant_size = push_constant_size;
-    p->set = std::move(desc);
+    p->sets = sets;
+    //p->set = std::move(desc);
 
     return std::move(*p.release());
 }

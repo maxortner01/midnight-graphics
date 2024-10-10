@@ -18,6 +18,12 @@ namespace mn::Graphics
         std::unique_ptr<Backend::Semaphore> swapchain_sem, render_sem;
         std::unique_ptr<Backend::Fence> render_fence;
 
+        // Here we can keep a std::vector<std::shared_ptr<void>> resources
+        // Everytime we use something in RenderFrame, we can push it onto this resources
+        // vector. Then, at the beginning of the frame when we wait on the render_fence (or during destruction
+        // of this FrameData object) we can clear it. This way we ensure if the resources used on this render
+        // are deleted elsewhere, they are at least still valid until the end of the render.
+
         void create();
         void destroy();
     };
@@ -48,9 +54,13 @@ namespace mn::Graphics
         bool shouldClose() const { return _close; }
         MN_SYMBOL void finishWork() const;
 
+        MN_SYMBOL void setMousePos(Math::Vec2f position);
+
         float aspectRatio() const { return (float)Math::x(_size) / (float)Math::y(_size); }
 
     private:
+        void construct_swapchain();
+
         void _open(const Math::Vec2u& size, const std::string& name);
 
         uint32_t next_image_index(std::shared_ptr<FrameData> fd) const;
@@ -59,7 +69,10 @@ namespace mn::Graphics
         bool _close;
         Handle<Window> handle;
         mn::handle_t surface, swapchain;
+        
+        std::shared_ptr<Image> imgui_surface;
         std::vector<std::shared_ptr<Image>> images;
+
         std::vector<std::shared_ptr<FrameData>> frame_data;
         Math::Vec2u _size;
     };

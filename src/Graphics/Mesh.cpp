@@ -1,4 +1,4 @@
-#include <Graphics/Model.hpp>
+#include <Graphics/Mesh.hpp>
 #include <Graphics/Buffer.hpp>
 
 #include <SL/Lua.hpp>
@@ -6,9 +6,9 @@
 namespace mn::Graphics
 {
 
-Model Model::fromFrame(const Frame& frame)
+Mesh Mesh::fromFrame(const Frame& frame)
 {
-    Model m;
+    Mesh m;
 
     if (frame.vertices.size())
     {
@@ -34,16 +34,16 @@ Model Model::fromFrame(const Frame& frame)
     return m;
 }
 
-Model Model::fromLua(const std::string& lua_file)
+Mesh Mesh::fromLua(const std::string& lua_file)
 {
     Frame f;
 
     SL::Runtime runtime(lua_file);
 
-    const auto model = runtime.getGlobal<SL::Table>("Model");
-    MIDNIGHT_ASSERT(model, "Error loading model: Model global not found!");
+    const auto Mesh = runtime.getGlobal<SL::Table>("Mesh");
+    MIDNIGHT_ASSERT(Mesh, "Error loading Mesh: Mesh global not found!");
 
-    model->try_get<SL::Table>("vertices", [&](const SL::Table& vertices)
+    Mesh->try_get<SL::Table>("vertices", [&](const SL::Table& vertices)
     {
         vertices.each<SL::Table>([&](uint32_t i, const SL::Table& vertex)
         {
@@ -57,7 +57,7 @@ Model Model::fromLua(const std::string& lua_file)
         });
     });
 
-    model->try_get<SL::Table>("colors", [&](const SL::Table& colors)
+    Mesh->try_get<SL::Table>("colors", [&](const SL::Table& colors)
     {
         colors.each<SL::Table>([&](uint32_t i, const SL::Table& color)
         {
@@ -70,7 +70,7 @@ Model Model::fromLua(const std::string& lua_file)
         });
     });
 
-    model->try_get<SL::Table>("normals", [&](const SL::Table& normals)
+    Mesh->try_get<SL::Table>("normals", [&](const SL::Table& normals)
     {
         normals.each<SL::Table>([&](uint32_t i, const SL::Table& normal)
         {
@@ -83,7 +83,7 @@ Model Model::fromLua(const std::string& lua_file)
         });
     });
 
-    model->try_get<SL::Table>("indices", [&](const SL::Table& indices)
+    Mesh->try_get<SL::Table>("indices", [&](const SL::Table& indices)
     {
         indices.each<SL::Number>([&](uint32_t i, const SL::Number& index)
         { f.indices.push_back(index); });
@@ -92,17 +92,17 @@ Model Model::fromLua(const std::string& lua_file)
     return fromFrame(f);
 }
 
-std::size_t Model::vertexCount() const
+std::size_t Mesh::vertexCount() const
 {
     return (vertex ? vertex->allocated() / sizeof(Vertex) : 0);
 }
 
-std::size_t Model::indexCount() const
+std::size_t Mesh::indexCount() const
 {
     return (index ? index->allocated() / sizeof(uint32_t) : 0);
 }
 
-void Model::setVertexCount(uint32_t count)
+void Mesh::setVertexCount(uint32_t count)
 {
     if (!vertex)
         vertex = std::make_shared<Buffer>();
@@ -110,7 +110,7 @@ void Model::setVertexCount(uint32_t count)
     vertex->allocateBytes(sizeof(Vertex) * count);
 }   
 
-void Model::setIndexCount(uint32_t count)
+void Mesh::setIndexCount(uint32_t count)
 {
     if (!index)
         index = std::make_shared<Buffer>();
@@ -118,7 +118,7 @@ void Model::setIndexCount(uint32_t count)
     index->allocateBytes(sizeof(uint32_t) * count);
 }
 
-std::span<Model::Vertex> Model::vertices()
+std::span<Mesh::Vertex> Mesh::vertices()
 {
     using s = std::span<Vertex>;
     return (vertex ? 
@@ -128,7 +128,7 @@ std::span<Model::Vertex> Model::vertices()
     } : s());
 }
 
-std::span<const Model::Vertex> Model::vertices() const
+std::span<const Mesh::Vertex> Mesh::vertices() const
 {
     using s = std::span<const Vertex>;
     return (vertex ? 
@@ -138,7 +138,7 @@ std::span<const Model::Vertex> Model::vertices() const
     } : s());
 }
 
-std::span<uint32_t> Model::indices()
+std::span<uint32_t> Mesh::indices()
 {
     using s = std::span<uint32_t>;
     return (index ? 
@@ -148,7 +148,7 @@ std::span<uint32_t> Model::indices()
     } : s());
 }
 
-std::span<const uint32_t> Model::indices() const
+std::span<const uint32_t> Mesh::indices() const
 {
     using s = std::span<const uint32_t>;
     return (index ? 
@@ -156,6 +156,11 @@ std::span<const uint32_t> Model::indices() const
         reinterpret_cast<const uint32_t*>(index->rawData()),
         indexCount() 
     } : s());
+}
+
+std::size_t Mesh::allocated() const
+{
+    return ( vertex ? vertex->allocated() : 0U ) + ( index ? index->allocated() : 0U );
 }
 
 }

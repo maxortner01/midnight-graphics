@@ -3,6 +3,7 @@
 #include <Def.hpp>
 #include <Utility/Singleton.hpp>
 
+#include "../ObjectHandle.hpp"
 #include "Device.hpp"
 
 namespace mn::Graphics
@@ -17,7 +18,7 @@ namespace mn::Graphics::Backend
         Surface
     };
 
-    struct Instance : Utility::Singleton<Instance>
+    struct Instance : Utility::Singleton<Instance>, ObjectHandle<Instance>
     {
         friend struct Singleton<Instance>;
 
@@ -35,7 +36,6 @@ namespace mn::Graphics::Backend
         Instance();
         ~Instance();
 
-        Handle<Instance> handle;
         mn::handle_t allocator;
 
         std::unique_ptr<Device> device;

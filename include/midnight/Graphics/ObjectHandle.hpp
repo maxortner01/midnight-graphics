@@ -7,8 +7,7 @@ namespace mn::Graphics
     template<typename T>
     struct ObjectHandle
     {
-        ObjectHandle() = default;
-        ObjectHandle(Handle<T> h) : handle(h) { }
+        ObjectHandle(Handle<T> h = nullptr) : handle(h) { }
 
         auto getHandle() const { return handle; }
 

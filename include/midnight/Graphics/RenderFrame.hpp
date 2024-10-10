@@ -2,7 +2,7 @@
 
 #include <Def.hpp>
 
-#include "Model.hpp"
+#include "Mesh.hpp"
 #include "Buffer.hpp"
 #include "Image.hpp"
 
@@ -23,7 +23,7 @@ namespace mn::Graphics
         MN_SYMBOL void startRender();
         MN_SYMBOL void endRender();
 
-        MN_SYMBOL void clear(std::tuple<float, float, float> color) const;
+        MN_SYMBOL void clear(std::tuple<float, float, float> color, float alpha = 1.f) const;
         
         MN_SYMBOL void setPushConstant(const Pipeline& pipeline, const void* data) const;
         template<typename T>
@@ -37,8 +37,8 @@ namespace mn::Graphics
         MN_SYMBOL void draw(const Pipeline& pipeline, uint32_t vertices, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const Pipeline& pipeline, const Buffer& buffer, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t instances = 1) const;
-        MN_SYMBOL void draw(const Pipeline& pipeline, const Model& model, uint32_t instances = 1) const;
-        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, const Mesh& Mesh, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const Pipeline& pipeline, std::shared_ptr<Mesh> Mesh, uint32_t instances = 1) const;
 
         MN_SYMBOL void drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances = 1) const;
 

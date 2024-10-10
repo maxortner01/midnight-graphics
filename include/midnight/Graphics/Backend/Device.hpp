@@ -75,7 +75,12 @@ namespace mn::Graphics::Backend
 
         std::shared_ptr<Sampler> getSampler(Sampler::Type type);
 
+        void waitForIdle() const;
+
+        mn::handle_t getImGuiPool();
     private:
+        mn::handle_t imgui_pool;
+
         Handle<Device> handle;
         mn::handle_t   physical_device;
 

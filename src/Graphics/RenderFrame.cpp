@@ -71,10 +71,10 @@ void RenderFrame::endRender()
     ((PFN_vkCmdEndRenderingKHR)(pvkCmdEndRenderingKHR))(frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
 }
 
-void RenderFrame::clear(std::tuple<float, float, float> color) const
+void RenderFrame::clear(std::tuple<float, float, float> color, float alpha) const
 {   
     VkClearColorValue clearValue;
-	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), 1.0f } };
+	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), alpha } };
 
     const auto aspect_bits = [](VkImageAspectFlags aspectMask)
     {
@@ -215,18 +215,16 @@ void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices, uint32_t ins
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline.getHandle().as<VkPipeline>());
 
-    if (pipeline.hasSet())
+    const auto& sets = pipeline.getSetHandles();
+    if (sets.size())
     {
-        const auto& desc = pipeline.getSet();
-
-        const auto set = desc->getHandle().as<VkDescriptorSet>();
         vkCmdBindDescriptorSets(
             cmdBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             static_cast<VkPipelineLayout>(pipeline.getLayoutHandle()),
             0,
-            1,
-            &set,
+            static_cast<uint32_t>(sets.size()),
+            reinterpret_cast<const VkDescriptorSet*>(sets.data()),
             0,
             nullptr
         );
@@ -263,20 +261,22 @@ void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer,
     draw(pipeline, *buffer, instances);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, const Model& model, uint32_t instances) const
+void RenderFrame::draw(const Pipeline& pipeline, const Mesh& Mesh, uint32_t instances) const
 {
-    if (!model.vertexCount()) return;
+    if (!Mesh.vertexCount()) return;
 
-    if (model.indexCount())
-        drawIndexed(pipeline, model.vertex, model.index, instances);
+    if (Mesh.indexCount())
+        drawIndexed(pipeline, Mesh.vertex, Mesh.index, instances);
     else
-        draw(pipeline, model.vertex, instances);
+        draw(pipeline, Mesh.vertex, instances);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Model> model, uint32_t instances) const
+void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Mesh> Mesh, uint32_t instances) const
 {
-    draw(pipeline, *model, instances);
+    draw(pipeline, *Mesh, instances);
 }
+
+// TODO: Break out pipeline binding into its own function
 
 void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances) const
 {
@@ -289,18 +289,16 @@ void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> 
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline.getHandle().as<VkPipeline>());
 
-    if (pipeline.hasSet())
+    const auto& sets = pipeline.getSetHandles();
+    if (sets.size())
     {
-        const auto& desc = pipeline.getSet();
-
-        const auto set = desc->getHandle().as<VkDescriptorSet>();
         vkCmdBindDescriptorSets(
             cmdBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             static_cast<VkPipelineLayout>(pipeline.getLayoutHandle()),
             0,
-            1,
-            &set,
+            static_cast<uint32_t>(sets.size()),
+            reinterpret_cast<const VkDescriptorSet*>(sets.data()),
             0,
             nullptr
         );

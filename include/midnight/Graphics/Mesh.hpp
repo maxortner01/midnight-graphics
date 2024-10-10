@@ -8,7 +8,7 @@ namespace mn::Graphics
     struct Buffer;
     struct RenderFrame;
 
-    struct Model
+    struct Mesh
     {
         friend struct RenderFrame;
 
@@ -25,8 +25,8 @@ namespace mn::Graphics
             std::vector<uint32_t> indices;
         };
 
-        MN_SYMBOL static Model fromFrame(const Frame& frame);
-        MN_SYMBOL static Model fromLua(const std::string& lua_file);
+        MN_SYMBOL static Mesh fromFrame(const Frame& frame);
+        MN_SYMBOL static Mesh fromLua(const std::string& lua_file);
 
         MN_SYMBOL std::size_t vertexCount() const;
         MN_SYMBOL std::size_t indexCount() const;
@@ -39,6 +39,8 @@ namespace mn::Graphics
 
         MN_SYMBOL std::span<uint32_t> indices();
         MN_SYMBOL std::span<const uint32_t> indices() const;
+
+        MN_SYMBOL std::size_t allocated() const;
 
     private:
         std::shared_ptr<Buffer> vertex, index;

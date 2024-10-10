@@ -4,6 +4,8 @@
 #include "Buffer.hpp"
 #include "ObjectHandle.hpp"
 
+#include "Descriptor.hpp"
+
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
@@ -57,6 +59,7 @@ namespace mn::Graphics
 
     struct PipelineBuilder;
 
+    /*
     struct DescriptorSet : ObjectHandle<DescriptorSet>
     {
         friend struct PipelineBuilder;
@@ -72,7 +75,7 @@ namespace mn::Graphics
         DescriptorSet(Handle<DescriptorSet> h) : ObjectHandle(h) {  }
 
         mn::handle_t layout, pool;
-    };
+    };*/
 
     struct Pipeline : ObjectHandle<Pipeline>
     {
@@ -94,16 +97,20 @@ namespace mn::Graphics
             setPushConstant(cmd, reinterpret_cast<const void*>(&value));
         }
 
-        bool hasSet() const { return set.get(); }
-        const std::unique_ptr<DescriptorSet>& getSet() const { return set; }
+        const auto& getSetHandles() const { return sets; }
+
+        //bool hasSet() const { return set.get(); }
+        //const std::unique_ptr<DescriptorSet>& getSet() const { return set; }
 
         auto getLayoutHandle() const { return layout; }
 
     private:
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
 
-        std::unique_ptr<DescriptorSet> set;
+        //std::unique_ptr<DescriptorSet> set;
         uint32_t push_constant_size;
+        // TODO: Lifetime issue here... How can we ensure that these sets are still valid
+        std::vector<mn::handle_t> sets;
         std::vector<uint32_t> binding_strides;
         mn::handle_t layout;
     };
@@ -124,7 +131,11 @@ namespace mn::Graphics
         MN_SYMBOL PipelineBuilder& setSize(uint32_t w, uint32_t h);
         MN_SYMBOL PipelineBuilder& setColorFormat(uint32_t c);
         MN_SYMBOL PipelineBuilder& setDepthFormat(uint32_t d);
-        MN_SYMBOL PipelineBuilder& addTextureBinding();
+        MN_SYMBOL PipelineBuilder& addSet(Descriptor& d);
+
+        // We want to be able to create a global descriptor set, then pass it into each
+        // of our pipelines... So the descriptor creation really *shouldn't* be here
+        //MN_SYMBOL PipelineBuilder& addTextureBinding();
         
         template<typename T>
         PipelineBuilder& setPushConstantObject()
@@ -136,15 +147,7 @@ namespace mn::Graphics
         [[nodiscard]] MN_SYMBOL Pipeline build() const;
 
     private:
-        struct Binding
-        {
-            enum Type
-            {
-                Texture
-            } type;
-        };
-    
-        std::vector<Binding> bindings;
+        std::vector<mn::handle_t> setLayouts, sets;
         std::pair<uint32_t, uint32_t> size;
         std::unordered_map<ShaderType, std::shared_ptr<Shader>> modules;
         Topology top  = Topology::Triangles;

@@ -6,15 +6,31 @@ namespace mn::Graphics
 {
     struct Event
     {
-        enum class ButtonType { Press, Release, Hold };
+        enum class ButtonType { Press, Release };
 
         struct None { };
         struct Quit { };
-        struct Button
+        struct Key
         {
+            char key;
             ButtonType type;
         };
 
-        std::variant<None, Quit, Button> event;
+        struct MouseMove
+        {
+            Math::Vec2f delta;
+        };
+
+        struct MouseScroll
+        {
+            float delta;
+        };
+
+        struct WindowSize
+        {
+            uint32_t new_width, new_height;
+        };
+
+        std::variant<None, Quit, Key, WindowSize, MouseMove, MouseScroll> event;
     };
 }

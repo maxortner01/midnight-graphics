@@ -35,7 +35,7 @@ void Instance::destroySurface(handle_t surface) const
     vkDestroySurfaceKHR(handle.as<VkInstance>(), static_cast<VkSurfaceKHR>(surface), nullptr);
 }
 
-Instance::Instance() : handle(nullptr)
+Instance::Instance()
 {
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -138,6 +138,8 @@ Instance::Instance() : handle(nullptr)
         case VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM:
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:          std::cout << "Other\n";          break;
         }
+
+        std::cout << "Max sampled image count: " << props.limits.maxDescriptorSetSampledImages << "\n";
 
         std::cout << "API version: " << VK_VERSION_MAJOR(props.apiVersion) << "." << VK_VERSION_MINOR(props.apiVersion) << "." << VK_VERSION_PATCH(props.apiVersion) << "\n";
     }

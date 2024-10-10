@@ -24,6 +24,24 @@ set(SPIRV_REFLECT
     ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect/spirv_reflect.c
     ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect/spirv_reflect.h)
 
+set(IMGUI_SOURCES
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui.h
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui_draw.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui_demo.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui_internal.h
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui_tables.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imgui_widgets.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imstb_rectpack.h
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imstb_textedit.h
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/imstb_truetype.h
+
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/backends/imgui_impl_sdl3.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/backends/imgui_impl_sdl3.h
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/backends/imgui_impl_vulkan.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/imgui/backends/imgui_impl_vulkan.h
+)
+
 add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Instance.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Device.cpp
@@ -36,17 +54,21 @@ add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Buffer.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Texture.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Image.cpp
-    ${MIDNIGHT_BASE_DIR}/src/Graphics/Model.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Mesh.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Keyboard.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Descriptor.cpp
 
     ${MIDNIGHT_BASE_DIR}/src/Math/Angle.cpp
 
-    ${SPIRV_REFLECT})
+    ${SPIRV_REFLECT}
+    ${IMGUI_SOURCES})
 
 target_link_libraries(midnight-graphics PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
 target_include_directories(midnight-graphics 
     PUBLIC
         ${MIDNIGHT_BASE_DIR}/include 
         ${MIDNIGHT_BASE_DIR}/include/midnight 
+        ${MIDNIGHT_BASE_DIR}/extern/imgui
     PRIVATE 
         ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect
         ${MIDNIGHT_BASE_DIR}/extern/stb)
