@@ -171,6 +171,17 @@ void DescriptorSet::setImages(uint32_t binding, Backend::Sampler::Type type, con
     vkUpdateDescriptorSets(device->getHandle().as<VkDevice>(), 1, &write, 0, nullptr);
 }*/
 
+Pipeline::Pipeline(Pipeline&& p) :
+    layout(p.layout),
+    push_constant_size(p.push_constant_size),
+    binding_strides(p.binding_strides),
+    descriptors(p.descriptors)
+{
+    handle = p.handle;
+    p.layout = nullptr;
+    p.handle = nullptr;
+}
+
 Pipeline::~Pipeline()
 {
     auto& device = Backend::Instance::get()->getDevice();
@@ -205,8 +216,15 @@ PipelineBuilder PipelineBuilder::fromLua(const std::string& source_dir, const st
         shaders.try_get<SL::String>("vertex",   [&](const SL::String& dir) { builder.addShader(source_dir + dir, ShaderType::Vertex);   });
         shaders.try_get<SL::String>("fragment", [&](const SL::String& dir) { builder.addShader(source_dir + dir, ShaderType::Fragment); });
     });
+    
+    res->try_get<SL::Table>("formats", [&](const SL::Table& formats)
+    {
+        formats.each<SL::Number>([&](uint32_t i, const SL::Number& format)
+        {
+            builder.addAttachmentFormat(static_cast<Image::Format>(format));
+        });
+    });
 
-    res->try_get<SL::Number>("colorFormat", [&](const SL::Number& format){ builder.setColorFormat(static_cast<uint32_t>(format)); });
     res->try_get<SL::Number>("depthFormat", [&](const SL::Number& format){ builder.setDepthFormat(static_cast<uint32_t>(format)); });
     res->try_get<SL::Boolean>("depthTesting",    [&](const SL::Boolean& _bool){ builder.setDepthTesting(_bool); });
     res->try_get<SL::Boolean>("backfaceCulling", [&](const SL::Boolean& _bool){ builder.setBackfaceCull(_bool); });
@@ -222,7 +240,7 @@ PipelineBuilder& PipelineBuilder::addShader(std::filesystem::path path, ShaderTy
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::addShader(const std::shared_ptr<Shader>& shader)
+PipelineBuilder& PipelineBuilder::addShader(std::shared_ptr<Shader> shader)
 {
     MIDNIGHT_ASSERT(!modules.count(shader->getType()), "Shader type already present in pipeline");
     modules.emplace(shader->getType(), shader);
@@ -265,9 +283,9 @@ PipelineBuilder& PipelineBuilder::setDepthTesting(bool d)
     return *this;    
 }
 
-PipelineBuilder& PipelineBuilder::setColorFormat(uint32_t c)
+PipelineBuilder& PipelineBuilder::addAttachmentFormat(Image::Format f)
 {
-    color_format = c;
+    attachment_formats.push_back(f);
     return *this;
 }
 
@@ -277,10 +295,9 @@ PipelineBuilder& PipelineBuilder::setDepthFormat(uint32_t d)
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::addSet(Descriptor& d)
+PipelineBuilder& PipelineBuilder::addSet(std::shared_ptr<Descriptor> d)
 {
-    setLayouts.push_back(d.getLayoutHandle());
-    sets.push_back(d.getHandle());
+    descriptors.push_back(d);
     return *this;
 }
 
@@ -300,116 +317,6 @@ Pipeline PipelineBuilder::build() const
     const auto layout = [&]()
     {
         auto& device = Backend::Instance::get()->getDevice();
-        /*
-        // Construct the set here if necessary
-        if (bindings.size())
-        {
-            //const std::unordered_map<VkDescriptorType, uint32_t> sizes = {
-                //{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 640 },
-                //{ VK_DESCRIPTOR_TYPE_SAMPLER, 4 }
-            //};
-
-            std::unordered_map<VkDescriptorType, uint32_t> types;
-            const auto get_type = [&](Binding::Type t)
-            {
-                switch (t)
-                {
-                case Binding::Type::Texture: 
-                    types[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER]++;
-                    return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                }
-            };
-
-            // We need two bindings
-            // One binding for textures
-            // Another for samplers, we really only have the two samplers from the device
-
-            // Hardcoded for now. We add a variable descriptor for the textures and a size 2 descriptor for samplers
-
-            std::vector<VkDescriptorSetLayoutBinding> _bindings;
-            std::vector<VkDescriptorBindingFlagsEXT> _binding_flags;
-            std::vector<uint32_t> counts(bindings.size(), 16);
-            for (uint32_t i = 0; i < bindings.size(); i++)
-            {
-                const auto binding_type = get_type(bindings[i].type);
-                _bindings.push_back(VkDescriptorSetLayoutBinding {
-                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .binding = i,
-                    .descriptorCount = 16,
-                    .descriptorType = binding_type
-                });
-
-                _binding_flags.push_back(
-                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |
-                    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
-                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT |
-                    VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT);
-            }
-
-            VkDescriptorSetLayoutCreateInfo layout_create_info;
-            layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layout_create_info.bindingCount = _bindings.size();
-            layout_create_info.pBindings = _bindings.data();
-            layout_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
-
-            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
-            binding_flags.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-            binding_flags.bindingCount   = _binding_flags.size();
-            binding_flags.pBindingFlags  = _binding_flags.data();
-            layout_create_info.pNext = &binding_flags;
-
-            VkDescriptorSetLayout desc_layout;
-            MIDNIGHT_ASSERT(vkCreateDescriptorSetLayout(
-                device->getHandle().as<VkDevice>(), 
-                &layout_create_info, 
-                nullptr, 
-                &desc_layout) == VK_SUCCESS, "Error creating descriptor layout");
-            
-            std::vector<VkDescriptorPoolSize> pool_sizes;
-            for (const auto& [type, count] : types)
-                pool_sizes.push_back(VkDescriptorPoolSize {
-                    .type = type,
-                    .descriptorCount = 16 
-                });
-
-            VkDescriptorPoolCreateInfo pool_create_info{};
-            pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            pool_create_info.pNext = nullptr;
-            pool_create_info.poolSizeCount = pool_sizes.size();
-            pool_create_info.pPoolSizes = pool_sizes.data();
-            pool_create_info.maxSets = 1;
-            pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-
-            VkDescriptorPool pool;
-            MIDNIGHT_ASSERT(vkCreateDescriptorPool(
-                device->getHandle().as<VkDevice>(), 
-                &pool_create_info, 
-                nullptr, 
-                &pool) == VK_SUCCESS, "Failed to create descriptor pool");
-
-            VkDescriptorSetVariableDescriptorCountAllocateInfo variable_alloc{};
-            variable_alloc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
-            variable_alloc.pNext = nullptr;
-            variable_alloc.descriptorSetCount = counts.size();
-            variable_alloc.pDescriptorCounts = counts.data();
-
-            VkDescriptorSetAllocateInfo alloc_info{};
-            alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            alloc_info.pNext = &variable_alloc;
-            alloc_info.descriptorPool = pool;
-            alloc_info.descriptorSetCount = 1;
-            alloc_info.pSetLayouts = &desc_layout;
-
-            VkDescriptorSet set;
-            MIDNIGHT_ASSERT(vkAllocateDescriptorSets(
-                device->getHandle().as<VkDevice>(), 
-                &alloc_info, 
-                &set) == VK_SUCCESS, "Failed to create set");
-            
-            desc = std::unique_ptr<DescriptorSet>(new DescriptorSet(set));
-            desc->pool = pool;
-            desc->layout = desc_layout;
-        }*/
 
         // TODO: Need to be able to specify vertex and/or fragment
         VkPushConstantRange push_constant = {
@@ -417,6 +324,11 @@ Pipeline PipelineBuilder::build() const
             .offset = 0,
             .size = push_constant_size
         };
+
+        std::vector<VkDescriptorSetLayout> setLayouts;
+        setLayouts.reserve(descriptors.size());
+        for (const auto& d : descriptors)
+            setLayouts.push_back(static_cast<VkDescriptorSetLayout>(d->getLayoutHandle()));
 
         VkPipelineLayoutCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -470,28 +382,29 @@ Pipeline PipelineBuilder::build() const
         .patchControlPoints = 0
     };
 
-    VkPipelineColorBlendAttachmentState color_blend_attach = {
-        .blendEnable = (blending ? VK_TRUE : VK_FALSE),
-        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-        .colorBlendOp = VK_BLEND_OP_ADD,
-        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-        .alphaBlendOp = VK_BLEND_OP_ADD,
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
-    };
+    std::vector<VkPipelineColorBlendAttachmentState> blends;
+    for (std::size_t i = 0; i < attachment_formats.size(); i++)
+        blends.push_back(VkPipelineColorBlendAttachmentState{
+            .blendEnable = (blending ? VK_TRUE : VK_FALSE),
+            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .colorBlendOp = VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+            .alphaBlendOp = VK_BLEND_OP_ADD,
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+        });
 
     VkPipelineColorBlendStateCreateInfo color_blend = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext = nullptr,
         .logicOpEnable = VK_FALSE,
         .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,
-        .pAttachments = &color_blend_attach,
+        .attachmentCount = static_cast<uint32_t>(blends.size()),
+        .pAttachments = blends.data(),
         .blendConstants = { 0, 0, 0, 0 }
     };
 
-    std::cout << "DEPTH: " << depth << "\n";
     const auto depth_stencil = ( depth ? 
         []()
         {
@@ -595,13 +508,17 @@ Pipeline PipelineBuilder::build() const
         .primitiveRestartEnable = VK_FALSE
     };
 
-    const auto c_format = static_cast<VkFormat>(color_format);
+    std::vector<VkFormat> color_formats;
+    color_formats.reserve(attachment_formats.size());
+    for (const auto& f : attachment_formats)
+        color_formats.push_back(static_cast<VkFormat>(f));
+
     const auto d_format = static_cast<VkFormat>(depth_format);
     VkPipelineRenderingCreateInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .pNext = nullptr,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &c_format,
+        .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
+        .pColorAttachmentFormats = color_formats.data(),
         .depthAttachmentFormat = d_format,
         .stencilAttachmentFormat = VK_FORMAT_D32_SFLOAT_S8_UINT
     };
@@ -681,14 +598,13 @@ Pipeline PipelineBuilder::build() const
     const auto err = vkCreateGraphicsPipelines(device->getHandle().as<VkDevice>(), VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline);
     MIDNIGHT_ASSERT(err == VK_SUCCESS, "Error creating graphics pipeline: " << string_VkResult(err));
 
-    auto p = std::unique_ptr<Pipeline>(new Pipeline(pipeline));
-    p->binding_strides.push_back(binding.stride);
-    p->layout = layout;
-    p->push_constant_size = push_constant_size;
-    p->sets = sets;
-    //p->set = std::move(desc);
+    Pipeline p(pipeline);
+    p.binding_strides.push_back(binding.stride);
+    p.layout = layout;
+    p.push_constant_size = push_constant_size;
+    p.descriptors = descriptors;
 
-    return std::move(*p.release());
+    return p;
 }
 
 }

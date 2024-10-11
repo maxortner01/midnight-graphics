@@ -22,13 +22,17 @@ namespace mn::Graphics
             mn::handle_t handle, allocation, view;
             u32 format;
             Math::Vec2u size;
+
+            // IF IMGUI
+            mn::handle_t imgui_ds;
         };
 
         enum Format : u32
         {
             DF32_SU8 = 130,
             R8G8B8A8_UNORM = 37,
-            B8G8R8A8_UNORM = 44
+            B8G8R8A8_UNORM = 44,
+            R16G16B16A16_SFLOAT = 97
         };
 
         Image(const Image&) = delete;

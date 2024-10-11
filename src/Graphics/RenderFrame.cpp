@@ -10,14 +10,74 @@
 namespace mn::Graphics
 {
 
-void RenderFrame::startRender() // maybe we can pass in a std::vector of images, then we can add the attachments on
+// Should make this a function in Backend::Device, it's copied from Window.cpp
+void _transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
 {
-    VkRenderingAttachmentInfo color_attach = {
+    VkImageAspectFlags aspectMask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageMemoryBarrier2 image_barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .pNext = nullptr,
+        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT,
+        .oldLayout = old_layout,
+        .newLayout = new_layout,
+        .image = image,
+        .subresourceRange = [](VkImageAspectFlags aspectMask)
+            {
+                return VkImageSubresourceRange {
+                    .aspectMask = aspectMask,
+                    .baseMipLevel = 0,
+                    .levelCount = VK_REMAINING_MIP_LEVELS,
+                    .baseArrayLayer = 0,
+                    .layerCount = VK_REMAINING_ARRAY_LAYERS
+                };
+            }(aspectMask)
+    };
+
+    VkDependencyInfo dep_info = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .pNext = nullptr,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &image_barrier
+    };
+    
+    auto& device = Backend::Instance::get()->getDevice();
+    PFN_vkVoidFunction pVkCmdPipelineBarrier2KHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkCmdPipelineBarrier2KHR");
+    ((PFN_vkCmdPipelineBarrier2KHR)(pVkCmdPipelineBarrier2KHR ))(cmd, &dep_info);
+};
+
+void RenderFrame::startRender(std::optional<std::vector<std::shared_ptr<Image>>> images) // maybe we can pass in a std::vector of images, then we can add the attachments on
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    std::vector<VkRenderingAttachmentInfo> attachments;
+    attachments.push_back(VkRenderingAttachmentInfo {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
         .imageView = static_cast<VkImageView>(get_image()->getAttachment<Image::Color>().view),
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    };
+    });
+
+    frame_data->resources.insert(get_image());
+
+    _transition_image(cmdBuffer, static_cast<VkImage>(get_image()->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+    if (images)
+    {
+        for (const auto& image : *images)
+        {
+            _transition_image(cmdBuffer, static_cast<VkImage>(image->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+            attachments.push_back(VkRenderingAttachmentInfo {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .pNext = nullptr,
+                .imageView = static_cast<VkImageView>(image->getAttachment<Image::Color>().view),
+                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            });
+            frame_data->resources.insert(image);
+        }
+    }
 
     std::optional<VkRenderingAttachmentInfo> depth_attach;
 
@@ -43,8 +103,8 @@ void RenderFrame::startRender() // maybe we can pass in a std::vector of images,
         .flags = 0,
         .renderArea = { 0, 0, Math::x( image_size ), Math::y( image_size ) },
         .layerCount = 1,
-        .colorAttachmentCount = 1, // For a G-buffer, we can attach multiple color attachments
-        .pColorAttachments = &color_attach,
+        .colorAttachmentCount = static_cast<uint32_t>(attachments.size()), // For a G-buffer, we can attach multiple color attachments
+        .pColorAttachments = attachments.data(),
         .pDepthAttachment = ( depth_attach.has_value() ? &(*depth_attach) : nullptr )
     };
 
@@ -93,6 +153,9 @@ void RenderFrame::clear(std::tuple<float, float, float> color, float alpha) cons
     depthvalue.depth = 0;
     depthvalue.stencil = 0;
 
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+    _transition_image(cmdBuffer, static_cast<VkImage>(get_image()->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
 	//clear image
 	vkCmdClearColorImage(
         frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
@@ -116,44 +179,6 @@ void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) co
 {
     pipeline.setPushConstant(frame_data->command_buffer, data);
 }
-
-// Should make this a function in Backend::Device, it's copied from Window.cpp
-void _transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
-{
-    VkImageAspectFlags aspectMask = (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-    VkImageMemoryBarrier2 image_barrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-        .pNext = nullptr,
-        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        .srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        .dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT,
-        .oldLayout = old_layout,
-        .newLayout = new_layout,
-        .image = image,
-        .subresourceRange = [](VkImageAspectFlags aspectMask)
-            {
-                return VkImageSubresourceRange {
-                    .aspectMask = aspectMask,
-                    .baseMipLevel = 0,
-                    .levelCount = VK_REMAINING_MIP_LEVELS,
-                    .baseArrayLayer = 0,
-                    .layerCount = VK_REMAINING_ARRAY_LAYERS
-                };
-            }(aspectMask)
-    };
-
-    VkDependencyInfo dep_info = {
-        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-        .pNext = nullptr,
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &image_barrier
-    };
-    
-    auto& device = Backend::Instance::get()->getDevice();
-    PFN_vkVoidFunction pVkCmdPipelineBarrier2KHR = vkGetDeviceProcAddr(device->getHandle().as<VkDevice>(), "vkCmdPipelineBarrier2KHR");
-    ((PFN_vkCmdPipelineBarrier2KHR)(pVkCmdPipelineBarrier2KHR ))(cmd, &dep_info);
-};
 
 void RenderFrame::blit(std::shared_ptr<const Image> source, std::shared_ptr<const Image> destination) const
 {
@@ -206,29 +231,45 @@ void RenderFrame::blit(std::shared_ptr<const Image> source, std::shared_ptr<cons
     );
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices, uint32_t instances) const
+void RenderFrame::bind(const std::shared_ptr<Pipeline>& pipeline) const
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
+    frame_data->resources.insert(pipeline);
     vkCmdBindPipeline(
         cmdBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline.getHandle().as<VkPipeline>());
+        pipeline->getHandle().as<VkPipeline>());
 
-    const auto& sets = pipeline.getSetHandles();
+    const auto& sets = pipeline->getDescriptors();
     if (sets.size())
     {
+        std::vector<VkDescriptorSet> desc_sets;
+        desc_sets.reserve(sets.size());
+        for (const auto& set : sets)
+        {
+            desc_sets.push_back(set->getHandle().as<VkDescriptorSet>());
+            frame_data->resources.insert(set);
+        }
+
         vkCmdBindDescriptorSets(
             cmdBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            static_cast<VkPipelineLayout>(pipeline.getLayoutHandle()),
+            static_cast<VkPipelineLayout>(pipeline->getLayoutHandle()),
             0,
-            static_cast<uint32_t>(sets.size()),
-            reinterpret_cast<const VkDescriptorSet*>(sets.data()),
+            static_cast<uint32_t>(desc_sets.size()),
+            desc_sets.data(),
             0,
             nullptr
         );
     }
+}
+
+void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t vertices, uint32_t instances) const
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    bind(pipeline);
 
     vkCmdDraw(
         cmdBuffer,
@@ -238,72 +279,13 @@ void RenderFrame::draw(const Pipeline& pipeline, uint32_t vertices, uint32_t ins
         0);
 }
 
-void RenderFrame::draw(const Pipeline& pipeline, const Buffer& buffer, uint32_t instances) const
+void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, uint32_t instances) const
 {
-    MIDNIGHT_ASSERT(!(buffer.allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
+    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline->getBindingStride()), "Buffer stride is not expected by pipeline!");
 
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-    const auto buff = buffer.getHandle().as<VkBuffer>();
-    VkDeviceSize off = 0;
-    vkCmdBindVertexBuffers(
-        cmdBuffer,
-        0,
-        1,
-        &buff,
-        &off);
-
-    draw(pipeline, buffer.vertices(), instances);
-}
-
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, uint32_t instances) const
-{
-    draw(pipeline, *buffer, instances);
-}
-
-void RenderFrame::draw(const Pipeline& pipeline, const Mesh& Mesh, uint32_t instances) const
-{
-    if (!Mesh.vertexCount()) return;
-
-    if (Mesh.indexCount())
-        drawIndexed(pipeline, Mesh.vertex, Mesh.index, instances);
-    else
-        draw(pipeline, Mesh.vertex, instances);
-}
-
-void RenderFrame::draw(const Pipeline& pipeline, std::shared_ptr<Mesh> Mesh, uint32_t instances) const
-{
-    draw(pipeline, *Mesh, instances);
-}
-
-// TODO: Break out pipeline binding into its own function
-
-void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> buffer, std::shared_ptr<Buffer> indices, uint32_t instances) const
-{
-    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline.getBindingStride()), "Buffer stride is not expected by pipeline!");
-
-    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
-
-    vkCmdBindPipeline(
-        cmdBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline.getHandle().as<VkPipeline>());
-
-    const auto& sets = pipeline.getSetHandles();
-    if (sets.size())
-    {
-        vkCmdBindDescriptorSets(
-            cmdBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            static_cast<VkPipelineLayout>(pipeline.getLayoutHandle()),
-            0,
-            static_cast<uint32_t>(sets.size()),
-            reinterpret_cast<const VkDescriptorSet*>(sets.data()),
-            0,
-            nullptr
-        );
-    }
-
+    frame_data->resources.insert(buffer);
     const auto buff = buffer->getHandle().as<VkBuffer>();
     VkDeviceSize off = 0;
     vkCmdBindVertexBuffers(
@@ -313,6 +295,38 @@ void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> 
         &buff,
         &off);
 
+    draw(pipeline, buffer->vertices(), instances);
+}
+
+void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Mesh>& mesh, uint32_t instances) const
+{
+    if (!mesh->vertexCount()) return;
+    
+    if (mesh->indexCount())
+        drawIndexed(pipeline, mesh->vertex, mesh->index, instances);
+    else
+        draw(pipeline, mesh->vertex, instances);
+}
+
+void RenderFrame::drawIndexed(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances) const
+{
+    MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline->getBindingStride()), "Buffer stride is not expected by pipeline!");
+
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    bind(pipeline);
+
+    frame_data->resources.insert(buffer);
+    const auto buff = buffer->getHandle().as<VkBuffer>();
+    VkDeviceSize off = 0;
+    vkCmdBindVertexBuffers(
+        cmdBuffer,
+        0,
+        1,
+        &buff,
+        &off);
+
+    frame_data->resources.insert(indices);
     vkCmdBindIndexBuffer(
         cmdBuffer,
         indices->getHandle().as<VkBuffer>(),
@@ -325,7 +339,7 @@ void RenderFrame::drawIndexed(const Pipeline& pipeline, std::shared_ptr<Buffer> 
         instances,
         0, 
         0, 
-        0);
+        0);   
 }
 
 }

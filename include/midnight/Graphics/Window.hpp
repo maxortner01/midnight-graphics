@@ -2,6 +2,7 @@
 
 #include <Def.hpp>
 #include <Math.hpp>
+#include <set>
 
 #include <Graphics/Backend/Command.hpp>
 #include <Graphics/Backend/Sync.hpp>
@@ -24,12 +25,18 @@ namespace mn::Graphics
         // of this FrameData object) we can clear it. This way we ensure if the resources used on this render
         // are deleted elsewhere, they are at least still valid until the end of the render.
 
+        std::set<std::shared_ptr<void>> resources;
+
+        void release();
+
         void create();
         void destroy();
     };
 
     struct Window
     {
+        inline static bool ImGui_Initialized = false;
+
         MN_SYMBOL Window(const Math::Vec2u& size, const std::string& name);
         MN_SYMBOL Window(const std::string& config_file = "");
 
@@ -54,6 +61,7 @@ namespace mn::Graphics
         bool shouldClose() const { return _close; }
         MN_SYMBOL void finishWork() const;
 
+        MN_SYMBOL void showMouse(bool show);
         MN_SYMBOL void setMousePos(Math::Vec2f position);
 
         float aspectRatio() const { return (float)Math::x(_size) / (float)Math::y(_size); }

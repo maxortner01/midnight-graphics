@@ -7,6 +7,35 @@
 
 namespace mn::Graphics
 {
+    Descriptor::Descriptor(Descriptor&& d) :
+        pool(d.pool),
+        layout(d.layout)
+    {
+        handle = d.handle;
+        d.pool = nullptr;
+        d.layout = nullptr;
+    }
+
+    Descriptor::~Descriptor()
+    {
+        auto& device = Backend::Instance::get()->getDevice();
+        if (pool)
+        {
+            vkDestroyDescriptorPool(
+                device->getHandle().as<VkDevice>(),
+                static_cast<VkDescriptorPool>(pool),
+                nullptr);
+        }
+
+        if (layout)
+        {
+            vkDestroyDescriptorSetLayout(
+                device->getHandle().as<VkDevice>(),
+                static_cast<VkDescriptorSetLayout>(layout),
+                nullptr);
+        }
+    }
+
     template<>
     void Descriptor::update<Descriptor::Binding::Image>(uint32_t index, const std::vector<std::shared_ptr<Image>>& data)
     {
@@ -120,7 +149,8 @@ namespace mn::Graphics
                     .binding = static_cast<uint32_t>(this->bindings.size()),
                     .descriptorCount = variable_binding->count,
                     .descriptorType = get_type(variable_binding->type),
-                    .pImmutableSamplers = nullptr
+                    .pImmutableSamplers = nullptr,
+                    .stageFlags = VK_SHADER_STAGE_ALL
                 });
                 types.push_back(type);
             }

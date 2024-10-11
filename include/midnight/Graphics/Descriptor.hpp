@@ -32,7 +32,9 @@ namespace Backend
         struct BindingData;
         
         Descriptor(const Descriptor&) = delete;
-        Descriptor(Descriptor&&) = default;
+        Descriptor(Descriptor&&);
+
+        ~Descriptor();
 
         // If there's a 1:1 mapping of type -> index, we don't need to pass in index
         template<Binding::Type T>

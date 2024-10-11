@@ -19,15 +19,23 @@
 namespace mn::Graphics
 {
     Buffer::Buffer() :
-        _data(nullptr), _size{0}
+        _data(nullptr), _size{0}, allocation{nullptr}
     {   }
+
+    Buffer::Buffer(Buffer&& b) :
+        allocation(b.allocation)
+    {   
+        std::swap(handle, b.handle);
+        b.allocation = nullptr;
+    }
 
     void Buffer::rawFree()
     {
-        const auto allocator = static_cast<VmaAllocator>(Backend::Instance::get()->getAllocator());
-        vmaDestroyBuffer(allocator, handle.as<VkBuffer>(), allocation.as<VmaAllocation>());
-        handle = nullptr;
-        allocation = nullptr;
+        if (handle && allocation)
+        {
+            const auto allocator = static_cast<VmaAllocator>(Backend::Instance::get()->getAllocator());
+            vmaDestroyBuffer(allocator, handle.as<VkBuffer>(), allocation.as<VmaAllocation>());
+        }
     }
 
     void Buffer::rawResize(std::size_t newsize)

@@ -11,7 +11,7 @@ namespace mn::Graphics
         using gpu_addr = void*;
 
         MN_SYMBOL Buffer();
-        Buffer(Buffer&&) = default;
+        Buffer(Buffer&&);
         Buffer(const Buffer&) = delete;
         virtual ~Buffer() { rawFree(); }
 

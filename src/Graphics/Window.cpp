@@ -19,6 +19,11 @@ namespace mn::Graphics
 {
 using handle_t = mn::handle_t;
 
+void FrameData::release() 
+{
+    resources.clear();
+}
+
 void FrameData::create()
 {
     auto& device = Backend::Instance::get()->getDevice();
@@ -78,6 +83,8 @@ Window::Window(const Math::Vec2u& size, const std::string& name)
 
     ImGui_ImplVulkan_Init(&init_info);
     ImGui_ImplVulkan_CreateFontsTexture();
+
+    ImGui_Initialized = true;
 }
 
 Window::Window(const std::string& config_file)
@@ -205,6 +212,8 @@ bool Window::pollEvent(Event& event) const
         abused_window->images.clear();
         abused_window->construct_swapchain();
 
+        abused_window->_size = Math::Vec2u{ new_width, new_height };
+
         event.event = Event::WindowSize{ .new_width = new_width, .new_height = new_height };
         break;
     }
@@ -269,6 +278,7 @@ RenderFrame Window::startFrame() const
 {
     auto next_frame = get_next_frame();
     next_frame->render_fence->wait();
+    next_frame->release();
     // Free resources
     next_frame->render_fence->reset();
     auto n_image = next_image_index(next_frame);
@@ -411,6 +421,12 @@ void Window::finishWork() const
     vkQueueWaitIdle(static_cast<VkQueue>(device->getGraphicsQueue().handle));
 }
 
+void Window::showMouse(bool show)
+{
+    if (show) SDL_ShowCursor();
+    else      SDL_HideCursor();
+}
+
 void Window::setMousePos(Math::Vec2f position)
 {
     auto flags = SDL_GetWindowFlags(handle.as<SDL_Window*>());
@@ -433,9 +449,7 @@ Window::~Window()
             finishWork();
 
             images.clear();
-
-            for (auto& f : frame_data)
-                f->destroy();
+            frame_data.clear();
 
             device->destroySwapchain(swapchain);
             instance->destroySurface(surface);

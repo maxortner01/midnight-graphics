@@ -3,6 +3,7 @@
 #include "Backend/Device.hpp"
 #include "Buffer.hpp"
 #include "ObjectHandle.hpp"
+#include "Image.hpp"
 
 #include "Descriptor.hpp"
 
@@ -82,7 +83,7 @@ namespace mn::Graphics
         friend struct PipelineBuilder;
         
         Pipeline(const Pipeline&) = delete;
-        Pipeline(Pipeline&&) = default;
+        Pipeline(Pipeline&&);
 
         MN_SYMBOL ~Pipeline();
 
@@ -97,20 +98,14 @@ namespace mn::Graphics
             setPushConstant(cmd, reinterpret_cast<const void*>(&value));
         }
 
-        const auto& getSetHandles() const { return sets; }
-
-        //bool hasSet() const { return set.get(); }
-        //const std::unique_ptr<DescriptorSet>& getSet() const { return set; }
-
         auto getLayoutHandle() const { return layout; }
+        const auto& getDescriptors() const { return descriptors; }
 
     private:
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
 
-        //std::unique_ptr<DescriptorSet> set;
         uint32_t push_constant_size;
-        // TODO: Lifetime issue here... How can we ensure that these sets are still valid
-        std::vector<mn::handle_t> sets;
+        std::vector<std::shared_ptr<Descriptor>> descriptors;
         std::vector<uint32_t> binding_strides;
         mn::handle_t layout;
     };
@@ -121,7 +116,7 @@ namespace mn::Graphics
         MN_SYMBOL static PipelineBuilder fromLua(const std::string& source_dir, const std::string& script);
 
         MN_SYMBOL PipelineBuilder& addShader(std::filesystem::path path, ShaderType type);
-        MN_SYMBOL PipelineBuilder& addShader(const std::shared_ptr<Shader>& shader);
+        MN_SYMBOL PipelineBuilder& addShader(std::shared_ptr<Shader> shader);
         MN_SYMBOL PipelineBuilder& setPolyMode(Polygon p);
         MN_SYMBOL PipelineBuilder& setTopology(Topology t);
         MN_SYMBOL PipelineBuilder& setBackfaceCull(bool cull);
@@ -129,9 +124,9 @@ namespace mn::Graphics
         MN_SYMBOL PipelineBuilder& setDepthTesting(bool d);
         MN_SYMBOL PipelineBuilder& setCullDirection(bool clockwise);
         MN_SYMBOL PipelineBuilder& setSize(uint32_t w, uint32_t h);
-        MN_SYMBOL PipelineBuilder& setColorFormat(uint32_t c);
         MN_SYMBOL PipelineBuilder& setDepthFormat(uint32_t d);
-        MN_SYMBOL PipelineBuilder& addSet(Descriptor& d);
+        MN_SYMBOL PipelineBuilder& addSet(std::shared_ptr<Descriptor> d);
+        MN_SYMBOL PipelineBuilder& addAttachmentFormat(Image::Format format);
 
         // We want to be able to create a global descriptor set, then pass it into each
         // of our pipelines... So the descriptor creation really *shouldn't* be here
@@ -146,13 +141,18 @@ namespace mn::Graphics
 
         [[nodiscard]] MN_SYMBOL Pipeline build() const;
 
+        PipelineBuilder() = default;
+        PipelineBuilder(const PipelineBuilder&) = default;
+        PipelineBuilder(PipelineBuilder&&) = default;
+
     private:
-        std::vector<mn::handle_t> setLayouts, sets;
+        std::vector<uint32_t> attachment_formats;
+        std::vector<std::shared_ptr<Descriptor>> descriptors;
         std::pair<uint32_t, uint32_t> size;
         std::unordered_map<ShaderType, std::shared_ptr<Shader>> modules;
         Topology top  = Topology::Triangles;
         Polygon  poly = Polygon::Fill;
         bool backface_cull = true, blending = true, depth = true, clockwise = true;
-        uint32_t color_format = 0, depth_format = 0, push_constant_size = 0;
+        uint32_t depth_format = 0, push_constant_size = 0;
     };
 }

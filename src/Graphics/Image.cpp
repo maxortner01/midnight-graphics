@@ -1,4 +1,7 @@
 #include <Graphics/Image.hpp>
+#include <Graphics/Window.hpp>
+
+#include <backends/imgui_impl_vulkan.h>
 
 #include <Graphics/Backend/Instance.hpp>
 #include <Graphics/Backend/Device.hpp>
@@ -16,6 +19,15 @@ namespace mn::Graphics
         a.view = device->createImageView(a.handle, format, depth);
         a.format = format;
         a.size = size; 
+        
+        if (Window::ImGui_Initialized)
+            a.imgui_ds = ImGui_ImplVulkan_AddTexture(
+                static_cast<VkSampler>(device->getSampler(Backend::Sampler::Nearest)->handle), 
+                static_cast<VkImageView>(a.view), 
+                VK_IMAGE_LAYOUT_GENERAL);
+        else
+            a.imgui_ds = nullptr;
+
         return a;
     }
 
