@@ -48,45 +48,47 @@ void _transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_lay
     ((PFN_vkCmdPipelineBarrier2KHR)(pVkCmdPipelineBarrier2KHR ))(cmd, &dep_info);
 };
 
-void RenderFrame::startRender(std::optional<std::vector<std::shared_ptr<Image>>> images) // maybe we can pass in a std::vector of images, then we can add the attachments on
+void RenderFrame::startRender(std::optional<std::shared_ptr<Image>> image) // maybe we can pass in a std::vector of images, then we can add the attachments on
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
+    const auto use_image = ( image ? *image : this->image);
+
+    frame_data->resources.insert(use_image);
     std::vector<VkRenderingAttachmentInfo> attachments;
-    attachments.push_back(VkRenderingAttachmentInfo {
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .pNext = nullptr,
-        .imageView = static_cast<VkImageView>(get_image()->getAttachment<Image::Color>().view),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    });
-
-    frame_data->resources.insert(get_image());
-
-    _transition_image(cmdBuffer, static_cast<VkImage>(get_image()->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-    if (images)
+    const auto& color_attachments = use_image->getColorAttachments();
+    for (const auto& a : color_attachments)
     {
-        for (const auto& image : *images)
-        {
-            _transition_image(cmdBuffer, static_cast<VkImage>(image->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-            attachments.push_back(VkRenderingAttachmentInfo {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .pNext = nullptr,
-                .imageView = static_cast<VkImageView>(image->getAttachment<Image::Color>().view),
-                .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            });
-            frame_data->resources.insert(image);
-        }
+        _transition_image(
+            cmdBuffer, 
+            static_cast<VkImage>(a.handle), 
+            VK_IMAGE_LAYOUT_UNDEFINED, 
+            VK_IMAGE_LAYOUT_GENERAL
+        );
+
+        attachments.push_back(VkRenderingAttachmentInfo {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
+            .imageView = static_cast<VkImageView>(a.view),
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        });
     }
 
     std::optional<VkRenderingAttachmentInfo> depth_attach;
 
-    if (get_image()->hasAttachment<Image::DepthStencil>())
+    if (use_image->hasDepthAttachment())
     {
+        _transition_image(
+            cmdBuffer, 
+            static_cast<VkImage>(use_image->getDepthAttachment().handle), 
+            VK_IMAGE_LAYOUT_UNDEFINED, 
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        );
+
         auto attachment_info = VkRenderingAttachmentInfo {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
-            .imageView = static_cast<VkImageView>( get_image()->getAttachment<Image::DepthStencil>().view ),
+            .imageView = static_cast<VkImageView>( use_image->getDepthAttachment().view ),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -96,7 +98,7 @@ void RenderFrame::startRender(std::optional<std::vector<std::shared_ptr<Image>>>
         depth_attach.emplace(attachment_info);
     }
 
-    const auto& image_size = get_image()->getAttachment<Image::Color>().size;
+    const auto& image_size = use_image->getColorAttachments()[0].size;
     VkRenderingInfo render_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .pNext = nullptr,
@@ -131,8 +133,10 @@ void RenderFrame::endRender()
     ((PFN_vkCmdEndRenderingKHR)(pvkCmdEndRenderingKHR))(frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
 }
 
-void RenderFrame::clear(std::tuple<float, float, float> color, float alpha) const
+void RenderFrame::clear(std::tuple<float, float, float> color, float alpha, std::optional<std::shared_ptr<Image>> image) const
 {   
+    const auto use_image = ( image ? *image : this->image );
+
     VkClearColorValue clearValue;
 	clearValue = { { std::get<0>(color), std::get<1>(color), std::get<2>(color), alpha } };
 
@@ -154,25 +158,25 @@ void RenderFrame::clear(std::tuple<float, float, float> color, float alpha) cons
     depthvalue.stencil = 0;
 
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
-    _transition_image(cmdBuffer, static_cast<VkImage>(get_image()->getAttachment<Image::Color>().handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-	//clear image
-	vkCmdClearColorImage(
-        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        static_cast<VkImage>(get_image()->getAttachment<Image::Color>().handle), 
-        VK_IMAGE_LAYOUT_GENERAL, 
-        &clearValue, 
-        1, 
-        &colorRange);
+    const auto& color_attachments = use_image->getColorAttachments();
+    for (const auto& a : color_attachments)
+    {
+        _transition_image(
+            cmdBuffer, 
+            static_cast<VkImage>(a.handle), 
+            VK_IMAGE_LAYOUT_UNDEFINED, 
+            VK_IMAGE_LAYOUT_GENERAL);
 
-    /*
-    vkCmdClearDepthStencilImage(
-        frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-        image->getDepthImage().as<VkImage>(), 
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 
-        &depthvalue, 
-        1, 
-        &dsRange);*/
+        //clear image
+        vkCmdClearColorImage(
+            frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
+            static_cast<VkImage>(a.handle), 
+            VK_IMAGE_LAYOUT_GENERAL, 
+            &clearValue, 
+            1, 
+            &colorRange);
+    }
 }
 
 void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) const
@@ -180,12 +184,12 @@ void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) co
     pipeline.setPushConstant(frame_data->command_buffer, data);
 }
 
-void RenderFrame::blit(std::shared_ptr<const Image> source, std::shared_ptr<const Image> destination) const
+void RenderFrame::blit(const Image::Attachment& source, const Image::Attachment& destination) const
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-    const auto& source_attachment      = source->getAttachment<Image::Color>();
-    const auto& destination_attachment = destination->getAttachment<Image::Color>();
+    const auto& source_attachment      = source;
+    const auto& destination_attachment = destination;
 
     _transition_image(cmdBuffer, static_cast<VkImage>(source_attachment.handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     _transition_image(cmdBuffer, static_cast<VkImage>(destination_attachment.handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);

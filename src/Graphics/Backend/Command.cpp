@@ -123,10 +123,9 @@ void __transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout old_la
     ((PFN_vkCmdPipelineBarrier2KHR)(pVkCmdPipelineBarrier2KHR ))(cmd, &dep_info);
 };
 
-void CommandBuffer::bufferToImage(std::shared_ptr<Buffer> buffer, std::shared_ptr<Image> image) const
+void CommandBuffer::bufferToImage(std::shared_ptr<Buffer> buffer, const Image::Attachment& image) const
 {
-    const auto& color = image->getAttachment<Image::Color>();
-    __transition_image(static_cast<VkCommandBuffer>(handle), static_cast<VkImage>(color.handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    __transition_image(static_cast<VkCommandBuffer>(handle), static_cast<VkImage>(image.handle), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     VkBufferImageCopy copyRegion = {};
     copyRegion.bufferOffset = 0;
@@ -137,18 +136,18 @@ void CommandBuffer::bufferToImage(std::shared_ptr<Buffer> buffer, std::shared_pt
     copyRegion.imageSubresource.mipLevel = 0;
     copyRegion.imageSubresource.baseArrayLayer = 0;
     copyRegion.imageSubresource.layerCount = 1;
-    copyRegion.imageExtent = { .width = Math::x(color.size), .height = Math::y(color.size), .depth = 1 };
+    copyRegion.imageExtent = { .width = Math::x(image.size), .height = Math::y(image.size), .depth = 1 };
 
     vkCmdCopyBufferToImage(
         handle.as<VkCommandBuffer>(), 
         buffer->getHandle().as<VkBuffer>(), 
-        static_cast<VkImage>(color.handle), 
+        static_cast<VkImage>(image.handle), 
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
         1,
 		&copyRegion
     );
 
-    __transition_image(static_cast<VkCommandBuffer>(handle), static_cast<VkImage>(color.handle), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    __transition_image(static_cast<VkCommandBuffer>(handle), static_cast<VkImage>(image.handle), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 }

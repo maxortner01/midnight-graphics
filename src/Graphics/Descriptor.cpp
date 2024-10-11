@@ -42,14 +42,13 @@ namespace mn::Graphics
         auto& device = Backend::Instance::get()->getDevice();
 
         std::vector<VkDescriptorImageInfo> infos;
-        infos.reserve(data.size());
         for (const auto& image : data)
         {
-            const auto& color = image->getAttachment<Image::Color>();
-            infos.push_back(VkDescriptorImageInfo{
-                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                .imageView = static_cast<VkImageView>(color.view)
-            });
+            for (const auto& a : image->getColorAttachments())
+                infos.push_back(VkDescriptorImageInfo{
+                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    .imageView = static_cast<VkImageView>(a.view)
+                });
         }
 
         VkWriteDescriptorSet write{};

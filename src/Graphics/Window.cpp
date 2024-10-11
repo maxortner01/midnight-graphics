@@ -288,8 +288,8 @@ RenderFrame Window::startFrame() const
     next_frame->command_buffer->reset();
     next_frame->command_buffer->begin();
 
-    auto _image = static_cast<VkImage>(images[n_image]->getAttachment<Image::Color>().handle);
-    auto _depth_image = static_cast<VkImage>(images[n_image]->getAttachment<Image::DepthStencil>().handle);
+    auto _image = static_cast<VkImage>(images[n_image]->getColorAttachments()[0].handle);
+    auto _depth_image = static_cast<VkImage>(images[n_image]->getDepthAttachment().handle);
     auto _cmd   = next_frame->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     transition_image(_cmd, _depth_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -316,7 +316,7 @@ void Window::endFrame(RenderFrame& rf) const
     rf.endRender();
     //rf.image_stack.pop();
     
-    auto _image = static_cast<VkImage>(images[rf.image_index]->getAttachment<Image::Color>().handle);
+    auto _image = static_cast<VkImage>(images[rf.image_index]->getColorAttachments()[0].handle);
     auto _cmd   = rf.frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
     transition_image(_cmd, _image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -436,10 +436,6 @@ void Window::setMousePos(Math::Vec2f position)
 
 Window::~Window()
 {
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-
     if (handle)
     {
 	    finishWork();
@@ -448,8 +444,12 @@ Window::~Window()
             const auto& device = instance->getDevice();
             finishWork();
 
-            images.clear();
             frame_data.clear();
+            images.clear();
+
+            ImGui_ImplVulkan_Shutdown();
+            ImGui_ImplSDL3_Shutdown();
+            ImGui::DestroyContext();
 
             device->destroySwapchain(swapchain);
             instance->destroySurface(surface);

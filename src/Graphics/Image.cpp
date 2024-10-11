@@ -31,26 +31,48 @@ namespace mn::Graphics
         return a;
     }
 
-    Image::~Image()
+    void Image::Attachment::destroy()
     {
         auto& device = Backend::Instance::get()->getDevice();
-        for (const auto& [ _, a ] : attachments)
-        {
-            device->destroyImageView(a.view);
-            if (a.allocation)
-                device->destroyImage(a.handle, a.allocation);
-        }
+        device->destroyImageView(view);
+        if (allocation)
+            device->destroyImage(handle, allocation);
+        
+        // Why don't we need this (?)
+        //if (imgui_ds)
+            //ImGui_ImplVulkan_RemoveTexture(static_cast<VkDescriptorSet>(imgui_ds));
+
+        view = nullptr;
+        allocation = nullptr;
+        handle = nullptr;
+        imgui_ds = nullptr;
     }
 
     template<Image::Type T>
-    void Image::rebuildAttachment(u32 format, Math::Vec2u size)
+    void Image::Attachment::rebuild(u32 format, Math::Vec2u size)
+    {
+        destroy();
+        auto& device = Backend::Instance::get()->getDevice();
+        auto a = make_attachment<T>(format, size);
+
+        allocation = a.allocation;
+        view       = a.view;
+        handle     = a.handle;
+        format     = a.format;
+        this->size = a.size;
+        imgui_ds   = a.imgui_ds;
+    }
+    template void Image::Attachment::rebuild<Image::Color>(u32, Math::Vec2u);
+    template void Image::Attachment::rebuild<Image::DepthStencil>(u32, Math::Vec2u);
+
+    Image::~Image()
     {
         auto& device = Backend::Instance::get()->getDevice();
-        attachments.erase(T);
-        attachments[T] = make_attachment<T>(format, size);
+
+        if (depth_attachment) color_attachments.push_back(*depth_attachment);
+        for (auto& a : color_attachments)
+            a.destroy();
     }
-    template void Image::rebuildAttachment<Image::Type::Color>(u32, Math::Vec2u);
-    template void Image::rebuildAttachment<Image::Type::DepthStencil>(u32, Math::Vec2u);
 
     ImageFactory::ImageFactory() :
         image(std::unique_ptr<Image>(new Image()))
@@ -60,7 +82,11 @@ namespace mn::Graphics
     ImageFactory& 
     ImageFactory::addAttachment(u32 format, const Math::Vec2u& size)
     {
-        image->attachments[T] = make_attachment<T>(format, size);
+        auto a = make_attachment<T>(format, size);
+        if constexpr (T == Image::Type::Color)
+            image->color_attachments.push_back(a);
+        else
+            image->depth_attachment.emplace(a);
         return *this;
     }
     template ImageFactory& ImageFactory::addAttachment<Image::Color>(u32, const Math::Vec2u&);
@@ -79,7 +105,10 @@ namespace mn::Graphics
         a.format = format;
         a.size = size;
 
-        image->attachments[T] = std::move(a);
+        if constexpr (T == Image::Type::Color)
+            image->color_attachments.push_back(a);
+        else
+            image->depth_attachment.emplace(a);
 
         return *this;
     }

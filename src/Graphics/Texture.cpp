@@ -44,7 +44,7 @@ namespace mn::Graphics
         auto& device = Backend::Instance::get()->getDevice();
         device->immediateSubmit([this, &image_data](mn::Graphics::Backend::CommandBuffer& cmd)
         {
-            cmd.bufferToImage(image_data, image);
+            cmd.bufferToImage(image_data, image->getColorAttachments()[0]);
         });
     }
 }

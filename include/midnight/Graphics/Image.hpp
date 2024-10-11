@@ -25,6 +25,11 @@ namespace mn::Graphics
 
             // IF IMGUI
             mn::handle_t imgui_ds;
+
+            void destroy();
+
+            template<Type T>
+            void rebuild(u32 format, Math::Vec2u size);
         };
 
         enum Format : u32
@@ -40,21 +45,33 @@ namespace mn::Graphics
 
         ~Image();
 
-        template<Type T>
-        bool
-        hasAttachment() const
+        bool hasDepthAttachment() const
         {
-            return attachments.count(T);
+            return depth_attachment.has_value();
         }
 
-        template<Type T>
-        void rebuildAttachment(u32 format, Math::Vec2u size);
-
-        template<Type T>
-        const Attachment& 
-        getAttachment() const
+        const Attachment&
+        getDepthAttachment() const
         {
-            return attachments.at(T);
+            return *depth_attachment;
+        }
+
+        Attachment&
+        getDepthAttachment()
+        {
+            return *depth_attachment;
+        }
+
+        const auto&
+        getColorAttachments() const
+        {
+            return color_attachments;
+        }
+
+        auto&
+        getColorAttachments()
+        {
+            return color_attachments;
         }
 
     private:
@@ -62,7 +79,8 @@ namespace mn::Graphics
 
         Image() = default;
 
-        std::unordered_map<Type, Attachment> attachments;
+        std::vector<Attachment> color_attachments;
+        std::optional<Attachment> depth_attachment;
     };
 
     struct ImageFactory

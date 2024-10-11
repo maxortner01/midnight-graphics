@@ -2,9 +2,10 @@
 
 #include <Def.hpp>
 
+#include "../Image.hpp"
+
 namespace mn::Graphics
 {
-    struct Image;
     struct Buffer;
 }
 
@@ -41,7 +42,7 @@ namespace mn::Graphics::Backend
 
         auto getHandle() const { return handle; }
         void submit(std::shared_ptr<Fence> fence) const;
-        void bufferToImage(std::shared_ptr<Buffer> buffer, std::shared_ptr<Image> image) const;
+        void bufferToImage(std::shared_ptr<Buffer> buffer, const Image::Attachment& image) const;
 
     private:    
         CommandBuffer(Handle<CommandPool> pool);
