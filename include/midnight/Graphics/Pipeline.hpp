@@ -60,24 +60,6 @@ namespace mn::Graphics
 
     struct PipelineBuilder;
 
-    /*
-    struct DescriptorSet : ObjectHandle<DescriptorSet>
-    {
-        friend struct PipelineBuilder;
-
-        DescriptorSet(const DescriptorSet&) = delete;
-        DescriptorSet(DescriptorSet&&) = default;
-
-        MN_SYMBOL ~DescriptorSet();
-
-        void setImages(uint32_t binding, Backend::Sampler::Type sampler, const std::vector<std::shared_ptr<Image>>& images);
-
-    private:
-        DescriptorSet(Handle<DescriptorSet> h) : ObjectHandle(h) {  }
-
-        mn::handle_t layout, pool;
-    };*/
-
     struct Pipeline : ObjectHandle<Pipeline>
     {
         friend struct PipelineBuilder;

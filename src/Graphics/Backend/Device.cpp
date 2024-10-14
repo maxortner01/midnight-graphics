@@ -70,7 +70,7 @@ Device::Device(Handle<Instance> _instance, handle_t p_device) :
             VK_KHR_MULTIVIEW_EXTENSION_NAME,
             VK_KHR_MAINTENANCE2_EXTENSION_NAME,
             VK_KHR_MAINTENANCE3_EXTENSION_NAME,
-            VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME   
+            VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
         };
 
         uint32_t count;

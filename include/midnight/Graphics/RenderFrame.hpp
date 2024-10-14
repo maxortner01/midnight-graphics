@@ -43,6 +43,11 @@ namespace mn::Graphics
 
         MN_SYMBOL void bind(const std::shared_ptr<Pipeline>& pipeline) const;
 
+        MN_SYMBOL void draw(uint32_t vertices, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const std::shared_ptr<Buffer>& buffer, uint32_t instances = 1) const;
+        MN_SYMBOL void draw(const std::shared_ptr<Mesh>& mesh, uint32_t instances = 1) const;
+        MN_SYMBOL void drawIndexed(const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances = 1) const;
+
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t vertices, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Mesh>& mesh, uint32_t instances = 1) const;

@@ -269,11 +269,9 @@ void RenderFrame::bind(const std::shared_ptr<Pipeline>& pipeline) const
     }
 }
 
-void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t vertices, uint32_t instances) const
+void RenderFrame::draw(uint32_t vertices, uint32_t instances) const
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
-
-    bind(pipeline);
 
     vkCmdDraw(
         cmdBuffer,
@@ -281,6 +279,72 @@ void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t verti
         instances,
         0,
         0);
+}
+
+void RenderFrame::draw(const std::shared_ptr<Buffer>& buffer, uint32_t instances) const
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    frame_data->resources.insert(buffer);
+    const auto buff = buffer->getHandle().as<VkBuffer>();
+    VkDeviceSize off = 0;
+    vkCmdBindVertexBuffers(
+        cmdBuffer,
+        0,
+        1,
+        &buff,
+        &off);
+
+    draw(buffer->vertices(), instances);
+}
+
+void RenderFrame::draw(const std::shared_ptr<Mesh>& mesh, uint32_t instances) const
+{
+    if (!mesh->vertexCount()) return;
+    
+    if (mesh->indexCount())
+        drawIndexed(mesh->vertex, mesh->index, instances);
+    else
+        draw(mesh->vertex, instances);
+}
+
+void RenderFrame::drawIndexed(const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances) const
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    frame_data->resources.insert(buffer);
+    const auto buff = buffer->getHandle().as<VkBuffer>();
+    VkDeviceSize off = 0;
+    vkCmdBindVertexBuffers(
+        cmdBuffer,
+        0,
+        1,
+        &buff,
+        &off);
+
+    frame_data->resources.insert(indices);
+    vkCmdBindIndexBuffer(
+        cmdBuffer,
+        indices->getHandle().as<VkBuffer>(),
+        0,
+        VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(
+        cmdBuffer,
+        indices->allocated() / sizeof(uint32_t),
+        instances,
+        0, 
+        0, 
+        0);   
+}
+
+void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t vertices, uint32_t instances) const
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
+
+    bind(pipeline);
+    
+    draw(vertices, instances);
 }
 
 void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, uint32_t instances) const
@@ -320,30 +384,7 @@ void RenderFrame::drawIndexed(const std::shared_ptr<Pipeline>& pipeline, const s
 
     bind(pipeline);
 
-    frame_data->resources.insert(buffer);
-    const auto buff = buffer->getHandle().as<VkBuffer>();
-    VkDeviceSize off = 0;
-    vkCmdBindVertexBuffers(
-        cmdBuffer,
-        0,
-        1,
-        &buff,
-        &off);
-
-    frame_data->resources.insert(indices);
-    vkCmdBindIndexBuffer(
-        cmdBuffer,
-        indices->getHandle().as<VkBuffer>(),
-        0,
-        VK_INDEX_TYPE_UINT32);
-
-    vkCmdDrawIndexed(
-        cmdBuffer,
-        indices->allocated() / sizeof(uint32_t),
-        instances,
-        0, 
-        0, 
-        0);   
+    drawIndexed(buffer, indices, instances);
 }
 
 }
