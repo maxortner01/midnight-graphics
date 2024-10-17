@@ -244,29 +244,25 @@ void RenderFrame::bind(const std::shared_ptr<Pipeline>& pipeline) const
         cmdBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline->getHandle().as<VkPipeline>());
+}
 
-    const auto& sets = pipeline->getDescriptors();
-    if (sets.size())
-    {
-        std::vector<VkDescriptorSet> desc_sets;
-        desc_sets.reserve(sets.size());
-        for (const auto& set : sets)
-        {
-            desc_sets.push_back(set->getHandle().as<VkDescriptorSet>());
-            frame_data->resources.insert(set);
-        }
+void RenderFrame::bind(uint32_t set_index, const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Descriptor>& descriptor) const
+{
+    const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
-        vkCmdBindDescriptorSets(
-            cmdBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            static_cast<VkPipelineLayout>(pipeline->getLayoutHandle()),
-            0,
-            static_cast<uint32_t>(desc_sets.size()),
-            desc_sets.data(),
-            0,
-            nullptr
-        );
-    }
+    const auto descriptor_set = descriptor->getHandle().as<VkDescriptorSet>();
+    frame_data->resources.insert(descriptor);
+    vkCmdBindDescriptorSets(
+        cmdBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        static_cast<VkPipelineLayout>(pipeline->getLayoutHandle()),
+        set_index, // It's possible we have to bind *all* the descriptor sets
+        1,
+        &descriptor_set,
+        0,
+        nullptr
+    );
+
 }
 
 void RenderFrame::draw(uint32_t vertices, uint32_t instances) const
@@ -308,7 +304,12 @@ void RenderFrame::draw(const std::shared_ptr<Mesh>& mesh, uint32_t instances) co
         draw(mesh->vertex, instances);
 }
 
-void RenderFrame::drawIndexed(const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances) const
+void RenderFrame::drawIndexed(
+    const std::shared_ptr<Buffer>& buffer, 
+    const std::shared_ptr<TypeBuffer<uint32_t>>& indices, 
+    uint32_t instances,
+    uint32_t index_offset,
+    std::optional<std::size_t> index_count) const
 {
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
@@ -325,15 +326,15 @@ void RenderFrame::drawIndexed(const std::shared_ptr<Buffer>& buffer, const std::
     frame_data->resources.insert(indices);
     vkCmdBindIndexBuffer(
         cmdBuffer,
-        indices->getHandle().as<VkBuffer>(),
-        0,
+        indices->getHandle().as<VkBuffer>(), 
+        index_offset * sizeof(uint32_t),
         VK_INDEX_TYPE_UINT32);
 
     vkCmdDrawIndexed(
         cmdBuffer,
-        indices->allocated() / sizeof(uint32_t),
+        (index_count ? *index_count : indices->size()),
         instances,
-        0, 
+        0,
         0, 
         0);   
 }
@@ -376,7 +377,11 @@ void RenderFrame::draw(const std::shared_ptr<Pipeline>& pipeline, const std::sha
         draw(pipeline, mesh->vertex, instances);
 }
 
-void RenderFrame::drawIndexed(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances) const
+void RenderFrame::drawIndexed(
+    const std::shared_ptr<Pipeline>& pipeline, 
+    const std::shared_ptr<Buffer>& buffer, 
+    const std::shared_ptr<TypeBuffer<uint32_t>>& indices, 
+    uint32_t instances) const
 {
     MIDNIGHT_ASSERT(!(buffer->allocated() % pipeline->getBindingStride()), "Buffer stride is not expected by pipeline!");
 

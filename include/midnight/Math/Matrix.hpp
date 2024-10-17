@@ -2,6 +2,13 @@
 
 #include <Def.hpp>
 
+/*
+#ifdef __x86_64__
+ #include <immintrin.h>
+#else   
+ #include "sse2neon.h"
+#endif*/
+
 #include "Vector.hpp"
 #include "Angle.hpp"
 
@@ -51,10 +58,14 @@ namespace mn::Math
         {
             Mat<R, C2, T> r;
 
-            for (int i = 0; i < R; i++)
-                for (int j = 0; j < C2; j++)
-                    for (int k = 0; k < C; k++)
-                        r.m[i][j] += m[i][k] * mat.m[k][j];
+            for (int i = 0; i < R; i++) {
+                for (int k = 0; k < C; k++) { 
+                    T temp = m[i][k]; // Temporary variable for better cache locality
+                    for (int j = 0; j < C2; j++) {
+                        r.m[i][j] += temp * mat.m[k][j];
+                    }
+                }
+            }
 
             return r;
         }

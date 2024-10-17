@@ -11,6 +11,7 @@ namespace mn::Graphics
     struct Window;
     struct FrameData;
     struct Pipeline;
+    struct Descriptor;
 
     // [x] Remove any `const T&` arguments, replace with std::shared_ptr<T>
     // [x] Store the passed in pointers in an std::vector<std::shared_ptr<void>> in the frame_data
@@ -43,16 +44,24 @@ namespace mn::Graphics
 
         MN_SYMBOL void bind(const std::shared_ptr<Pipeline>& pipeline) const;
 
+        // Does not bind pipeline
+        MN_SYMBOL void bind(uint32_t set_index, const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Descriptor>& descriptor) const;
+
         MN_SYMBOL void draw(uint32_t vertices, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Buffer>& buffer, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Mesh>& mesh, uint32_t instances = 1) const;
-        MN_SYMBOL void drawIndexed(const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances = 1) const;
+        MN_SYMBOL void drawIndexed(
+            const std::shared_ptr<Buffer>& buffer, 
+            const std::shared_ptr<TypeBuffer<uint32_t>>& indices, 
+            uint32_t instances = 1,
+            uint32_t index_offset = 0,
+            std::optional<std::size_t> index_count = std::nullopt) const;
 
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, uint32_t vertices, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, uint32_t instances = 1) const;
         MN_SYMBOL void draw(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Mesh>& mesh, uint32_t instances = 1) const;
 
-        MN_SYMBOL void drawIndexed(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<Buffer>& indices, uint32_t instances = 1) const;
+        MN_SYMBOL void drawIndexed(const std::shared_ptr<Pipeline>& pipeline, const std::shared_ptr<Buffer>& buffer, const std::shared_ptr<TypeBuffer<uint32_t>>& indices, uint32_t instances = 1) const;
 
     private:
         RenderFrame(uint32_t i, std::shared_ptr<Image> im) : image_index(i), image(im) { }

@@ -69,6 +69,7 @@ target_include_directories(midnight-graphics
         ${MIDNIGHT_BASE_DIR}/include 
         ${MIDNIGHT_BASE_DIR}/include/midnight 
         ${MIDNIGHT_BASE_DIR}/extern/imgui
+        ${MIDNIGHT_BASE_DIR}/extern/sse2neon
     PRIVATE 
         ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect
         ${MIDNIGHT_BASE_DIR}/extern/stb)

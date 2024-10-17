@@ -5,7 +5,8 @@
 
 namespace mn::Graphics
 {
-    struct Buffer;
+    template<typename T>
+    struct TypeBuffer;
     struct RenderFrame;
 
     struct Mesh
@@ -42,7 +43,7 @@ namespace mn::Graphics
 
         MN_SYMBOL std::size_t allocated() const;
 
-    private:
-        std::shared_ptr<Buffer> vertex, index;
+        std::shared_ptr<TypeBuffer<Vertex>> vertex;
+        std::shared_ptr<TypeBuffer<uint32_t>> index;
     };
 }

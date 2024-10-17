@@ -81,13 +81,13 @@ namespace mn::Graphics
         }
 
         auto getLayoutHandle() const { return layout; }
-        const auto& getDescriptors() const { return descriptors; }
+        const auto& getDescriptorLayouts() const { return descriptor_layouts; }
 
     private:
         Pipeline(Handle<Pipeline> h) : ObjectHandle(h) {  }
 
         uint32_t push_constant_size;
-        std::vector<std::shared_ptr<Descriptor>> descriptors;
+        std::vector<std::shared_ptr<Descriptor::Layout>> descriptor_layouts;
         std::vector<uint32_t> binding_strides;
         mn::handle_t layout;
     };
@@ -107,7 +107,7 @@ namespace mn::Graphics
         MN_SYMBOL PipelineBuilder& setCullDirection(bool clockwise);
         MN_SYMBOL PipelineBuilder& setSize(uint32_t w, uint32_t h);
         MN_SYMBOL PipelineBuilder& setDepthFormat(uint32_t d);
-        MN_SYMBOL PipelineBuilder& addSet(std::shared_ptr<Descriptor> d);
+        MN_SYMBOL PipelineBuilder& addDescriptorLayout(std::shared_ptr<Descriptor::Layout> d);
         MN_SYMBOL PipelineBuilder& addAttachmentFormat(Image::Format format);
 
         // We want to be able to create a global descriptor set, then pass it into each
@@ -129,7 +129,7 @@ namespace mn::Graphics
 
     private:
         std::vector<uint32_t> attachment_formats;
-        std::vector<std::shared_ptr<Descriptor>> descriptors;
+        std::vector<std::shared_ptr<Descriptor::Layout>> descriptor_layouts;
         std::pair<uint32_t, uint32_t> size;
         std::unordered_map<ShaderType, std::shared_ptr<Shader>> modules;
         Topology top  = Topology::Triangles;

@@ -12,21 +12,21 @@ Mesh Mesh::fromFrame(const Frame& frame)
 
     if (frame.vertices.size())
     {
-        m.vertex = std::make_shared<Buffer>();
-        m.vertex->allocateBytes(frame.vertices.size() * sizeof(Vertex));
+        m.vertex = std::make_shared<TypeBuffer<Vertex>>();
+        m.vertex->resize(frame.vertices.size());
 
         std::memcpy(
-            m.vertex->rawData(), 
+            &m.vertex->at(0), 
             reinterpret_cast<const Vertex*>(&frame.vertices[0]), 
             frame.vertices.size() * sizeof(Vertex));
     }
 
     if (frame.indices.size())
     {
-        m.index = std::make_shared<Buffer>();
-        m.index->allocateBytes(frame.indices.size() * sizeof(uint32_t));
+        m.index = std::make_shared<TypeBuffer<uint32_t>>();
+        m.index->resize(frame.indices.size());
         std::memcpy(
-            m.index->rawData(), 
+            &m.index->at(0), 
             reinterpret_cast<const uint32_t*>(&frame.indices[0]), 
             frame.indices.size() * sizeof(uint32_t));
     }
@@ -94,28 +94,28 @@ Mesh Mesh::fromLua(const std::string& lua_file)
 
 std::size_t Mesh::vertexCount() const
 {
-    return (vertex ? vertex->allocated() / sizeof(Vertex) : 0);
+    return (vertex ? vertex->size() : 0);
 }
 
 std::size_t Mesh::indexCount() const
 {
-    return (index ? index->allocated() / sizeof(uint32_t) : 0);
+    return (index ? index->size() : 0);
 }
 
 void Mesh::setVertexCount(uint32_t count)
 {
     if (!vertex)
-        vertex = std::make_shared<Buffer>();
+        vertex = std::make_shared<TypeBuffer<Vertex>>();
 
-    vertex->allocateBytes(sizeof(Vertex) * count);
+    vertex->resize(count);
 }   
 
 void Mesh::setIndexCount(uint32_t count)
 {
     if (!index)
-        index = std::make_shared<Buffer>();
+        index = std::make_shared<TypeBuffer<uint32_t>>();
 
-    index->allocateBytes(sizeof(uint32_t) * count);
+    index->resize(count);
 }
 
 std::span<Mesh::Vertex> Mesh::vertices()

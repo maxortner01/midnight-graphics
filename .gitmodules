@@ -19,3 +19,6 @@
 [submodule "extern/imgui"]
 	path = extern/imgui
 	url = https://github.com/ocornut/imgui
+[submodule "extern/sse2neon"]
+	path = extern/sse2neon
+	url = https://github.com/DLTcollab/sse2neon

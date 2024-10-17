@@ -175,7 +175,7 @@ Pipeline::Pipeline(Pipeline&& p) :
     layout(p.layout),
     push_constant_size(p.push_constant_size),
     binding_strides(p.binding_strides),
-    descriptors(p.descriptors)
+    descriptor_layouts(p.descriptor_layouts)
 {
     handle = p.handle;
     p.layout = nullptr;
@@ -295,9 +295,9 @@ PipelineBuilder& PipelineBuilder::setDepthFormat(uint32_t d)
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::addSet(std::shared_ptr<Descriptor> d)
+PipelineBuilder& PipelineBuilder::addDescriptorLayout(std::shared_ptr<Descriptor::Layout> d)
 {
-    descriptors.push_back(d);
+    descriptor_layouts.push_back(d);
     return *this;
 }
 
@@ -326,9 +326,9 @@ Pipeline PipelineBuilder::build() const
         };
 
         std::vector<VkDescriptorSetLayout> setLayouts;
-        setLayouts.reserve(descriptors.size());
-        for (const auto& d : descriptors)
-            setLayouts.push_back(static_cast<VkDescriptorSetLayout>(d->getLayoutHandle()));
+        setLayouts.reserve(descriptor_layouts.size());
+        for (const auto& d : descriptor_layouts)
+            setLayouts.push_back(d->getHandle().as<VkDescriptorSetLayout>());
 
         VkPipelineLayoutCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -602,7 +602,7 @@ Pipeline PipelineBuilder::build() const
     p.binding_strides.push_back(binding.stride);
     p.layout = layout;
     p.push_constant_size = push_constant_size;
-    p.descriptors = descriptors;
+    p.descriptor_layouts = descriptor_layouts;
 
     return p;
 }
