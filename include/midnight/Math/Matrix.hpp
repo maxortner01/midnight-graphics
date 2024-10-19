@@ -193,6 +193,121 @@ namespace mn::Math
     }
 
     template<typename T>
+    static Mat<4, 4, T> inv(const Mat<4, 4, T>& in)
+    {
+        Mat<4, 4, T> m;
+
+        // Precompute frequently used values (minors)
+        T m00 = in.m[2][2] * in.m[3][3] - in.m[2][3] * in.m[3][2];
+        T m01 = in.m[2][1] * in.m[3][3] - in.m[2][3] * in.m[3][1];
+        T m02 = in.m[2][1] * in.m[3][2] - in.m[2][2] * in.m[3][1];
+        T m03 = in.m[2][0] * in.m[3][3] - in.m[2][3] * in.m[3][0];
+        T m04 = in.m[2][0] * in.m[3][2] - in.m[2][2] * in.m[3][0];
+        T m05 = in.m[2][0] * in.m[3][1] - in.m[2][1] * in.m[3][0];
+
+        // Calculate the determinant (reuse minors for efficiency)
+        T det =
+            in.m[0][0] * (in.m[1][1] * m00 - in.m[1][2] * m01 + in.m[1][3] * m02) -
+            in.m[0][1] * (in.m[1][0] * m00 - in.m[1][2] * m03 + in.m[1][3] * m04) +
+            in.m[0][2] * (in.m[1][0] * m01 - in.m[1][1] * m03 + in.m[1][3] * m05) -
+            in.m[0][3] * (in.m[1][0] * m02 - in.m[1][1] * m04 + in.m[1][2] * m05);
+
+        // If the determinant is zero, the matrix is singular and cannot be inverted
+        MIDNIGHT_ASSERT(det != 0, "Matrix is singular and cannot be inverted");
+
+        T invDet = 1 / det;
+
+        // Compute the cofactor matrix and multiply by invDet to get the inverse
+        m.m[0][0] =  invDet * (in.m[1][1] * m00 - in.m[1][2] * m01 + in.m[1][3] * m02);
+        m.m[0][1] = -invDet * (in.m[0][1] * m00 - in.m[0][2] * m01 + in.m[0][3] * m02);
+        m.m[0][2] =  invDet * (in.m[0][1] * (in.m[1][2] * in.m[3][3] - in.m[1][3] * in.m[3][2]) -
+                               in.m[0][2] * (in.m[1][1] * in.m[3][3] - in.m[1][3] * in.m[3][1]) +
+                               in.m[0][3] * (in.m[1][1] * in.m[3][2] - in.m[1][2] * in.m[3][1]));
+        m.m[0][3] = -invDet * (in.m[0][1] * (in.m[1][2] * in.m[2][3] - in.m[1][3] * in.m[2][2]) -
+                               in.m[0][2] * (in.m[1][1] * in.m[2][3] - in.m[1][3] * in.m[2][1]) +
+                               in.m[0][3] * (in.m[1][1] * in.m[2][2] - in.m[1][2] * in.m[2][1]));
+
+        m.m[1][0] = -invDet * (in.m[1][0] * m00 - in.m[1][2] * m03 + in.m[1][3] * m04);
+        m.m[1][1] =  invDet * (in.m[0][0] * m00 - in.m[0][2] * m03 + in.m[0][3] * m04);
+        m.m[1][2] = -invDet * (in.m[0][0] * (in.m[1][2] * in.m[3][3] - in.m[1][3] * in.m[3][2]) -
+                               in.m[0][2] * (in.m[1][0] * in.m[3][3] - in.m[1][3] * in.m[3][0]) +
+                               in.m[0][3] * (in.m[1][0] * in.m[3][2] - in.m[1][2] * in.m[3][0]));
+        m.m[1][3] =  invDet * (in.m[0][0] * (in.m[1][2] * in.m[2][3] - in.m[1][3] * in.m[2][2]) -
+                               in.m[0][2] * (in.m[1][0] * in.m[2][3] - in.m[1][3] * in.m[2][0]) +
+                               in.m[0][3] * (in.m[1][0] * in.m[2][2] - in.m[1][2] * in.m[2][0]));
+
+        m.m[2][0] =  invDet * (in.m[1][0] * m01 - in.m[1][1] * m03 + in.m[1][3] * m05);
+        m.m[2][1] = -invDet * (in.m[0][0] * m01 - in.m[0][1] * m03 + in.m[0][3] * m05);
+        m.m[2][2] =  invDet * (in.m[0][0] * (in.m[1][1] * in.m[3][3] - in.m[1][3] * in.m[3][1]) -
+                               in.m[0][1] * (in.m[1][0] * in.m[3][3] - in.m[1][3] * in.m[3][0]) +
+                               in.m[0][3] * (in.m[1][0] * in.m[3][1] - in.m[1][1] * in.m[3][0]));
+        m.m[2][3] = -invDet * (in.m[0][0] * (in.m[1][1] * in.m[2][3] - in.m[1][3] * in.m[2][1]) -
+                               in.m[0][1] * (in.m[1][0] * in.m[2][3] - in.m[1][3] * in.m[2][0]) +
+                               in.m[0][3] * (in.m[1][0] * in.m[2][1] - in.m[1][1] * in.m[2][0]));
+
+        m.m[3][0] = -invDet * (in.m[1][0] * m02 - in.m[1][1] * m04 + in.m[1][2] * m05);
+        m.m[3][1] =  invDet * (in.m[0][0] * m02 - in.m[0][1] * m04 + in.m[0][2] * m05);
+        m.m[3][2] = -invDet * (in.m[0][0] * (in.m[1][1] * in.m[3][2] - in.m[1][2] * in.m[3][1]) -
+                               in.m[0][1] * (in.m[1][0] * in.m[3][2] - in.m[1][2] * in.m[3][0]) +
+                               in.m[0][2] * (in.m[1][0] * in.m[3][1] - in.m[1][1] * in.m[3][0]));
+        m.m[3][3] =  invDet * (in.m[0][0] * (in.m[1][1] * in.m[2][2] - in.m[1][2] * in.m[2][1]) -
+                               in.m[0][1] * (in.m[1][0] * in.m[2][2] - in.m[1][2] * in.m[2][0]) +
+                               in.m[0][2] * (in.m[1][0] * in.m[2][1] - in.m[1][1] * in.m[2][0]));
+
+        return m;
+    }
+
+    static Vec3f rotateQuaternion(Vec3<Angle> angles, Vec3f vec)
+    {
+        // Step 1: Convert Euler angles (in radians) to a quaternion
+        float halfX = y(angles).asRadians() * 0.5f;
+        float halfY = x(angles).asRadians() * 0.5f;
+        float halfZ = z(angles).asRadians() * 0.5f;
+
+        float cosX = cos(halfX);
+        float sinX = sin(halfX);
+        float cosY = cos(halfY);
+        float sinY = sin(halfY);
+        float cosZ = cos(halfZ);
+        float sinZ = sin(halfZ);
+
+        // Quaternion components
+        float w = cosY * cosX * cosZ + sinY * sinX * sinZ;
+        float x = sinY * cosX * cosZ - cosY * sinX * sinZ;
+        float y = cosY * sinX * cosZ + sinY * cosX * sinZ;
+        float z = cosY * cosX * sinZ - sinY * sinX * cosZ;
+
+        // Step 2: Rotate the vector using the quaternion
+        // Quaternion * Vector * Conjugate(Quaternion)
+        float qVecW = 0.0f;  // The w component of the vector quaternion (vector part)
+        float qVecX = Math::x(vec);
+        float qVecY = Math::y(vec);
+        float qVecZ = Math::z(vec);
+
+        // Perform quaternion multiplication: q * v
+        float resultW = w * qVecW - x * qVecX - y * qVecY - z * qVecZ;
+        float resultX = w * qVecX + x * qVecW + y * qVecZ - z * qVecY;
+        float resultY = w * qVecY - x * qVecZ + y * qVecW + z * qVecX;
+        float resultZ = w * qVecZ + x * qVecY - y * qVecX + z * qVecW;
+
+        // Conjugate of the quaternion
+        float conjW = w;
+        float conjX = -x;
+        float conjY = -y;
+        float conjZ = -z;
+
+        // Perform quaternion multiplication: result * conjugate(q)
+        Vec3f rotatedVector;
+        Math::x(rotatedVector) = resultW * conjX + resultX * conjW + resultY * conjZ - resultZ * conjY;
+        Math::y(rotatedVector) = resultW * conjY - resultX * conjZ + resultY * conjW + resultZ * conjX;
+        Math::z(rotatedVector) = resultW * conjZ + resultX * conjY - resultY * conjX + resultZ * conjW;
+
+        return rotatedVector;
+    }
+
+
+
+    template<typename T>
     using Mat2 = Mat<2, 2, T>;
 
     template<typename T>

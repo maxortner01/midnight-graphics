@@ -186,6 +186,7 @@ void RenderFrame::setPushConstant(const Pipeline& pipeline, const void* data) co
 
 void RenderFrame::blit(const Image::Attachment& source, const Image::Attachment& destination) const
 {
+    // TODO: Need to put underlying image into the resources
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
     const auto& source_attachment      = source;

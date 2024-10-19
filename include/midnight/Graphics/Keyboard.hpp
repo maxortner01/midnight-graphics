@@ -6,7 +6,7 @@ namespace mn::Graphics
     {
         enum Key
         {
-            W, A, S, D, Q, Space, LShift, Escape
+            W, A, S, D, Q, Space, LShift, Escape, LControl
         };
 
         static bool keyDown(Key key);

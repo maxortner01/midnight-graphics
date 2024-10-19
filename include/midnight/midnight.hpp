@@ -9,6 +9,7 @@
 #include "./Graphics/Mesh.hpp"
 #include "./Graphics/Texture.hpp"
 #include "./Graphics/Keyboard.hpp"
+#include "./Graphics/Mouse.hpp"
 
 #include "./Math/Vector.hpp"
 #include "./Math/Matrix.hpp"

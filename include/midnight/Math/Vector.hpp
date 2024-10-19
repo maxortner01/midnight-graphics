@@ -88,7 +88,7 @@ namespace mn::Math
         void operator-=(const Vec<C, A>& vec)
         {
             for (uint32_t i = 0; i < C; i++)
-                c[i] -= vec[i];
+                c[i] -= vec.c[i];
         }
 
         template<typename A>
@@ -106,6 +106,34 @@ namespace mn::Math
             return true;
         }
     };
+
+    template<std::size_t C, typename T>
+    static Vec<C, T> min(const Vec<C, T>& v1, const Vec<C, T>& v2)
+    {
+        Vec<C, T> ret;
+        for (int i = 0; i < C; i++)
+            ret.c[i] = std::min(v1.c[i], v2.c[i]);
+        return ret;
+    }
+
+    template<std::size_t C, typename T>
+    static Vec<C, T> max(const Vec<C, T>& v1, const Vec<C, T>& v2)
+    {
+        Vec<C, T> ret;
+        for (int i = 0; i < C; i++)
+            ret.c[i] = std::max(v1.c[i], v2.c[i]);
+        return ret;
+    }
+
+    template<std::size_t C, typename T, 
+        typename = std::enable_if_t<C >= 3>>
+    static Vec<3, T> xyz(const Vec<C, T>& vec)
+    {
+        Vec<3, T> ret;
+        for (int i = 0; i < 3; i++)
+            ret.c[i] = vec.c[i];
+        return ret;
+    }
 
     template<std::size_t C, typename T>
     static T& x(Vec<C, T>& vec)
@@ -156,6 +184,12 @@ namespace mn::Math
         return vec.c[3];
     }
 
+    template<std::size_t C, typename T>
+    static const T& w(const Vec<C, T>& vec)
+    {
+        static_assert(C >= 4);
+        return vec.c[3];
+    }
 
     template<std::size_t C, typename T1, typename T2>
     static T1 inner(const Vec<C, T1>& vec1, const Vec<C, T2>& vec2)

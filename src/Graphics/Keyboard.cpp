@@ -16,6 +16,7 @@ namespace mn::Graphics
         case Keyboard::Space: return SDL_SCANCODE_SPACE;
         case Keyboard::LShift: return SDL_SCANCODE_LSHIFT;
         case Keyboard::Escape: return SDL_SCANCODE_ESCAPE;
+        case Keyboard::LControl: return SDL_SCANCODE_LCTRL;
         default: return SDL_SCANCODE_0;
         }
     }

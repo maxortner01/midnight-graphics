@@ -495,6 +495,7 @@ Pipeline PipelineBuilder::build() const
     {
         switch (t)
         {
+        case Topology::Lines:     return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
         case Topology::Triangles: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         default:                  return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         }

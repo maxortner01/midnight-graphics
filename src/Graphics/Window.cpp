@@ -192,7 +192,9 @@ bool Window::pollEvent(Event& event) const
     auto io = ImGui::GetIO();
 
     //if (!ImGui_ImplSDL3_ProcessEvent(&e))
-    ImGui_ImplSDL3_ProcessEvent(&e);
+    if (process_imgui_events)
+        ImGui_ImplSDL3_ProcessEvent(&e);
+        
     switch (e.type)
     {
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
@@ -217,16 +219,20 @@ bool Window::pollEvent(Event& event) const
         event.event = Event::WindowSize{ .new_width = new_width, .new_height = new_height };
         break;
     }
+    case SDL_EVENT_MOUSE_WHEEL:
+        if (!io.WantCaptureMouse || !process_imgui_events)
+            event.event = Event::Wheel{ .amount = e.wheel.y };
+        break;
     case SDL_EVENT_MOUSE_MOTION:
-        if (!io.WantCaptureMouse)
+        if (!io.WantCaptureMouse || !process_imgui_events)
             event.event = Event::MouseMove{ .delta = { e.motion.xrel, e.motion.yrel } };
         break;
     case SDL_EVENT_KEY_DOWN:
-        if (!io.WantCaptureKeyboard)
+        if (!io.WantCaptureKeyboard || !process_imgui_events)
             event.event = Event::Key { .key = (char)e.key.key, .type = Event::ButtonType::Press };
         break;
     case SDL_EVENT_KEY_UP:
-        if (!io.WantCaptureKeyboard)
+        if (!io.WantCaptureKeyboard || !process_imgui_events)
             event.event = Event::Key { .key = (char)e.key.key, .type = Event::ButtonType::Release };
         break;
     default: 

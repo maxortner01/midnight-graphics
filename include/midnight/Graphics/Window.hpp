@@ -66,6 +66,8 @@ namespace mn::Graphics
 
         float aspectRatio() const { return (float)Math::x(_size) / (float)Math::y(_size); }
 
+        bool process_imgui_events = true;
+
     private:
         void construct_swapchain();
 

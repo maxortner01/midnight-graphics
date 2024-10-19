@@ -21,6 +21,11 @@ namespace mn::Graphics
             Math::Vec2f delta;
         };
 
+        struct Wheel
+        {
+            float amount;
+        };
+
         struct MouseScroll
         {
             float delta;
@@ -31,6 +36,6 @@ namespace mn::Graphics
             uint32_t new_width, new_height;
         };
 
-        std::variant<None, Quit, Key, WindowSize, MouseMove, MouseScroll> event;
+        std::variant<None, Quit, Key, WindowSize, MouseMove, MouseScroll, Wheel> event;
     };
 }

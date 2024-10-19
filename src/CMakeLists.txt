@@ -56,6 +56,7 @@ add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Image.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Mesh.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Keyboard.cpp
+    ${MIDNIGHT_BASE_DIR}/src/Graphics/Mouse.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Descriptor.cpp
 
     ${MIDNIGHT_BASE_DIR}/src/Math/Angle.cpp

@@ -23,7 +23,7 @@ namespace mn::Graphics
 
     enum class Topology
     {
-        Triangles
+        Triangles, Lines
     };
 
     enum class Polygon
