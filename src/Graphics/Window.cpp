@@ -4,6 +4,7 @@
 #include <Graphics/Backend/Instance.hpp>
 
 #include <imgui.h>
+#include <implot.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
 
@@ -50,6 +51,7 @@ Window::Window(const Math::Vec2u& size, const std::string& name)
 
     // IF IMGUI
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGui_ImplSDL3_InitForVulkan(handle.as<SDL_Window*>());
     const auto& instance = Backend::Instance::get();
 
@@ -455,6 +457,7 @@ Window::~Window()
 
             ImGui_ImplVulkan_Shutdown();
             ImGui_ImplSDL3_Shutdown();
+            ImPlot::DestroyContext();
             ImGui::DestroyContext();
 
             device->destroySwapchain(swapchain);

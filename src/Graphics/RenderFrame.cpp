@@ -133,7 +133,7 @@ void RenderFrame::endRender()
     ((PFN_vkCmdEndRenderingKHR)(pvkCmdEndRenderingKHR))(frame_data->command_buffer->getHandle().as<VkCommandBuffer>());
 }
 
-void RenderFrame::clear(std::tuple<float, float, float> color, float alpha, std::optional<std::shared_ptr<Image>> image) const
+void RenderFrame::clear(std::tuple<float, float, float> color, float alpha, std::optional<std::shared_ptr<Image>> image, int attachment_index) const
 {   
     const auto use_image = ( image ? *image : this->image );
 
@@ -160,18 +160,20 @@ void RenderFrame::clear(std::tuple<float, float, float> color, float alpha, std:
     const auto cmdBuffer = frame_data->command_buffer->getHandle().as<VkCommandBuffer>();
 
     const auto& color_attachments = use_image->getColorAttachments();
-    for (const auto& a : color_attachments)
+    for (int i = 0; i < color_attachments.size(); i++)
     {
+        if (attachment_index >= 0 && i != attachment_index) continue;
+
         _transition_image(
             cmdBuffer, 
-            static_cast<VkImage>(a.handle), 
+            static_cast<VkImage>(color_attachments[i].handle), 
             VK_IMAGE_LAYOUT_UNDEFINED, 
             VK_IMAGE_LAYOUT_GENERAL);
 
         //clear image
         vkCmdClearColorImage(
             frame_data->command_buffer->getHandle().as<VkCommandBuffer>(), 
-            static_cast<VkImage>(a.handle), 
+            static_cast<VkImage>(color_attachments[i].handle), 
             VK_IMAGE_LAYOUT_GENERAL, 
             &clearValue, 
             1, 

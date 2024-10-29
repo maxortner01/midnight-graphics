@@ -103,6 +103,16 @@ namespace mn::Math
         return m;
     }
 
+    template<std::size_t R, std::size_t C, typename T>
+    static Mat<C, R, T> transpose(const Mat<R, C, T>& mat)
+    {
+        Mat<C, R, T> m;
+        for (int r = 0; r < R; r++)
+            for (int c = 0; c < C; c++)
+                m.m[c][r] = mat.m[r][c];
+        return m;
+    }
+
     template<typename T>
     static Mat<4, 4, T> rotationX(const Angle& angle)
     {
@@ -305,7 +315,159 @@ namespace mn::Math
         return rotatedVector;
     }
 
+    template<typename T>
+    static Mat<4, 4, T> rotationFromQuaternion(Math::Vec4f quaternion)
+    {
+         // Extract quaternion components
+        float w = x(quaternion);
+        float x = y(quaternion);
+        float y = z(quaternion);
+        float z = Math::w(quaternion);
+        
+        Mat<4, 4, T> ret;
+        ret.m[0][0] = 1 - 2 * (y * y + z * z);
+        ret.m[0][1] = 2 * (x * y - z * w);
+        ret.m[0][2] = 2 * (x * z + y * w);
+        ret.m[0][3] = 0;
+        
+        ret.m[1][0] = 2 * (x * y + z * w);
+        ret.m[1][1] = 1 - 2 * (x * x + z * z);
+        ret.m[1][2] = 2 * (y * z - x * w);
+        ret.m[1][3] = 0;
+        
+        ret.m[2][0] = 2 * (x * z - y * w);
+        ret.m[2][1] = 2 * (y * z + x * w);
+        ret.m[2][2] = 1 - 2 * (x * x + y * y);
+        ret.m[2][3] = 0;
+        
+        ret.m[3][0] = 0;
+        ret.m[3][1] = 0;
+        ret.m[3][2] = 0;
+        ret.m[3][3] = 1;        
 
+        return ret;
+    }
+
+    static Vec3<Angle> eulerAxisAngle(Vec3f axis, Angle angle)
+    {
+        double halfAngle = angle.asRadians() / 2;
+        double sinHalfAngle = sin(halfAngle);
+        double w = cos(halfAngle);
+        double x = Math::x(axis) * sinHalfAngle;
+        double y = Math::y(axis) * sinHalfAngle;
+        double z = Math::z(axis) * sinHalfAngle;
+
+        // Step 2: Convert quaternion to Euler angles
+        Vec3<Angle> angles;
+
+        // Yaw (z-axis rotation)
+        Math::z(angles) = Angle::radians( atan2(2 * (y * w + x * z), 1 - 2 * (y * y + z * z)) );
+
+        // Pitch (y-axis rotation)
+        double sinp = 2 * (x * w - y * z);
+        if (fabs(sinp) >= 1)
+            Math::y(angles) = Angle::radians( copysign(M_PI / 2, sinp) ); // use 90 degrees if out of range
+        else
+            Math::y(angles) = Angle::radians( asin(sinp) );
+
+        // Roll (x-axis rotation)
+        Math::x(angles) = Angle::radians( atan2(2 * (x * w + y * z), 1 - 2 * (x * x + y * y)) );
+
+        return angles;
+    }
+
+    template<typename T>
+    static Mat<4, 4, T> rotationAxisAngle(Vec3f axis, Angle angle)
+    {
+        Mat<4, 4, T> ret;
+    
+        // Precompute trigonometric values
+        float cosTheta = cos(angle.asRadians());
+        float sinTheta = sin(angle.asRadians());
+        float oneMinusCos = 1 - cosTheta;
+
+        // Axis components
+        float ux = Math::x(axis);
+        float uy = Math::y(axis);
+        float uz = Math::z(axis);
+
+        // Populate the rotation matrix based on the formula
+        ret.m[0][0] = cosTheta + ux * ux * oneMinusCos;
+        ret.m[0][1] = ux * uy * oneMinusCos - uz * sinTheta;
+        ret.m[0][2] = ux * uz * oneMinusCos + uy * sinTheta;
+        ret.m[0][3] = 0;
+
+        ret.m[1][0] = uy * ux * oneMinusCos + uz * sinTheta;
+        ret.m[1][1] = cosTheta + uy * uy * oneMinusCos;
+        ret.m[1][2] = uy * uz * oneMinusCos - ux * sinTheta;
+        ret.m[1][3] = 0;
+
+        ret.m[2][0] = uz * ux * oneMinusCos - uy * sinTheta;
+        ret.m[2][1] = uz * uy * oneMinusCos + ux * sinTheta;
+        ret.m[2][2] = cosTheta + uz * uz * oneMinusCos;
+        ret.m[2][3] = 0;
+
+        ret.m[3][0] = 0;
+        ret.m[3][1] = 0;
+        ret.m[3][2] = 0;
+        ret.m[3][3] = 1;
+
+        return ret;
+    }
+
+    static Vec3<Angle> eulerFromQuaternion(Math::Vec4f quaternion)
+    {
+        const auto w = Math::x(quaternion);
+        const auto x = Math::y(quaternion);
+        const auto y = Math::z(quaternion);
+        const auto z = Math::w(quaternion);
+
+        float roll, pitch, yaw;
+
+        // Yaw (z-axis rotation)
+        yaw = atan2(2 * (y * w + x * z), 1 - 2 * (y * y + z * z));
+
+        // Pitch (y-axis rotation)
+        double sinp = 2 * (x * w - y * z);
+        if (fabs(sinp) >= 1)
+            pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+        else
+            pitch = asin(sinp);
+
+        // Roll (x-axis rotation)
+        roll = atan2(2 * (x * w + y * z), 1 - 2 * (x * x + y * y));
+
+        return Vec3<Angle>{
+            Angle::radians(pitch),
+            Angle::radians(roll),
+            Angle::radians(yaw)
+        };
+
+    }
+
+    template<typename T>
+    static Mat<4, 4, T> rotationUsingQuaternion(Vec3<Angle> angles)
+    {
+        // Calculate half angles
+        const auto pitch = x(angles).asRadians();
+        const auto roll  = z(angles).asRadians();
+        const auto yaw   = y(angles).asRadians();
+
+        T cy = cos(yaw * 0.5);
+        T sy = sin(yaw * 0.5);
+        T cp = cos(pitch * 0.5);
+        T sp = sin(pitch * 0.5);
+        T cr = cos(roll * 0.5);
+        T sr = sin(roll * 0.5);
+
+        // Create the quaternion
+        return rotationFromQuaternion<T>({
+            cr * cp * cy + sr * sp * sy, // w component
+            sr * cp * cy - cr * sp * sy, // x component
+            cr * sp * cy + sr * cp * sy, // y component
+            cr * cp * sy - sr * sp * cy  // z component
+        });
+    }
 
     template<typename T>
     using Mat2 = Mat<2, 2, T>;

@@ -31,7 +31,7 @@ namespace mn::Graphics
         MN_SYMBOL void startRender(std::optional<std::shared_ptr<Image>> image = std::nullopt);
         MN_SYMBOL void endRender();
 
-        MN_SYMBOL void clear(std::tuple<float, float, float> color, float alpha = 1.f, std::optional<std::shared_ptr<Image>> image = std::nullopt) const;
+        MN_SYMBOL void clear(std::tuple<float, float, float> color, float alpha = 1.f, std::optional<std::shared_ptr<Image>> image = std::nullopt, int attachment_index = -1) const;
         
         MN_SYMBOL void setPushConstant(const Pipeline& pipeline, const void* data) const;
         template<typename T>

@@ -42,6 +42,14 @@ set(IMGUI_SOURCES
     ${MIDNIGHT_BASE_DIR}/extern/imgui/backends/imgui_impl_vulkan.h
 )
 
+set(IMPLOT_SOURCES
+    ${MIDNIGHT_BASE_DIR}/extern/implot/implot_internal.h
+    ${MIDNIGHT_BASE_DIR}/extern/implot/implot_items.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/implot/implot.cpp
+    ${MIDNIGHT_BASE_DIR}/extern/implot/implot.h
+    ${MIDNIGHT_BASE_DIR}/extern/implot/implot_demo.cpp
+)
+
 add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Instance.cpp
     ${MIDNIGHT_BASE_DIR}/src/Graphics/Backend/Device.cpp
@@ -62,7 +70,7 @@ add_library(midnight-graphics SHARED
     ${MIDNIGHT_BASE_DIR}/src/Math/Angle.cpp
 
     ${SPIRV_REFLECT}
-    ${IMGUI_SOURCES})
+    ${IMGUI_SOURCES} ${IMPLOT_SOURCES})
 
 target_link_libraries(midnight-graphics PRIVATE SDL3::SDL3 Vulkan::Vulkan ${SHADERC} GPUOpen::VulkanMemoryAllocator simple-lua)
 target_include_directories(midnight-graphics 
@@ -70,6 +78,7 @@ target_include_directories(midnight-graphics
         ${MIDNIGHT_BASE_DIR}/include 
         ${MIDNIGHT_BASE_DIR}/include/midnight 
         ${MIDNIGHT_BASE_DIR}/extern/imgui
+        ${MIDNIGHT_BASE_DIR}/extern/implot
         ${MIDNIGHT_BASE_DIR}/extern/sse2neon
     PRIVATE 
         ${MIDNIGHT_BASE_DIR}/extern/spirv-reflect

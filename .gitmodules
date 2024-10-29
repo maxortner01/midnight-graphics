@@ -22,3 +22,6 @@
 [submodule "extern/sse2neon"]
 	path = extern/sse2neon
 	url = https://github.com/DLTcollab/sse2neon
+[submodule "extern/implot"]
+	path = extern/implot
+	url = https://github.com/epezent/implot
